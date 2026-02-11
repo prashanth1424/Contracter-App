@@ -3,222 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Company Invoice Report</title>
-    
+    <title>Client Invoice</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
-        .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; }
         
-        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
-        
-        .filter-box { 
-            background: #e0f2fe; border: 1px solid #bae6fd; padding: 20px; border-radius: 10px; margin-bottom: 20px; 
-            display: flex; flex-direction: column; gap: 15px; 
-        }
-        
-        label { font-weight: bold; color: #0369a1; display: block; margin-bottom: 5px; }
+        .filter-box { background: #e0f2fe; padding: 20px; border-radius: 10px; margin-bottom: 20px; display: flex; flex-direction: column; gap: 15px; }
         select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
-        
-        .btn-group { display: flex; gap: 10px; }
-        .btn-gen { background: #0284c7; color: white; flex: 1; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
-        .btn-pdf { background: #dc2626; color: white; flex: 1; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
-        
-        .report-result { display: none; margin-top: 20px; }
+        label { font-weight: bold; color: #0369a1; display: block; margin-bottom: 5px; }
 
-        /* Screen Table */
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        button { flex: 1; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 0.95rem; }
+        
+        .btn-gen { background: #0284c7; color: white; }
+        .btn-pdf { background: #dc2626; color: white; display: none; }
+        .btn-link { background: #16a34a; color: white; display: none; } /* Green Link Button */
+
+        #share-area { display: none; margin-top: 15px; background: #f0fdf4; padding: 15px; border: 1px dashed #16a34a; border-radius: 5px; text-align: center; }
+        .link-text { word-break: break-all; color: #166534; font-size: 0.9rem; margin-bottom: 10px; display: block; }
+
+        /* Hidden PDF Invoice Box (Keep exactly as before) */
+        #invoice-box { display: none; width: 700px !important; padding: 40px; background: white; box-sizing: border-box; }
+        .inv-header { display: flex; justify-content: space-between; border-bottom: 2px solid #1f2937; padding-bottom: 20px; margin-bottom: 20px; }
+        .inv-title { font-size: 2.2rem; font-weight: bold; color: #1f2937; }
+        .bill-label { font-size: 0.8rem; color: #888; text-transform: uppercase; font-weight: bold; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #f3f4f6; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; font-size: 0.9rem; }
-        td { padding: 10px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
-        
-        .back-btn { display: block; text-align: center; margin-top: 20px; color: #666; text-decoration: none; }
-
-        /* --- 📄 FIXED PDF LAYOUT --- */
-        #invoice-box {
-            display: none; 
-            /* FIXED WIDTH: 700px fits perfectly on A4 PDF with margins */
-            width: 700px !important; 
-            padding: 30px; 
-            background: white; 
-            box-sizing: border-box;
-        }
-        .inv-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
-        .inv-title { font-size: 2rem; font-weight: bold; color: #333; }
-        .inv-details { text-align: right; font-size: 0.9rem; }
-        .inv-total { margin-top: 20px; text-align: right; font-size: 1.4rem; font-weight: bold; color: #333; }
+        th { background: #f3f4f6; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; }
+        td { padding: 10px; border-bottom: 1px solid #eee; }
     </style>
     <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
 </head>
 <body>
 
     <div class="container">
-        <h2>📊 Company Invoice Report</h2>
+        <h2 style="text-align:center; color:#1f2937;">📊 Client Invoice</h2>
 
         <div class="filter-box">
             <div>
-                <label>1. Select Company</label>
-                <select id="company-select">
-                    <option value="">-- Choose Company --</option>
-                </select>
+                <label>1. Select Client</label>
+                <select id="client-select"><option value="">-- Choose Client --</option></select>
             </div>
             <div style="display:flex; gap:10px;">
-                <div style="flex:1">
-                    <label>2. Start Date</label>
-                    <input type="date" id="start-date">
-                </div>
-                <div style="flex:1">
-                    <label>3. End Date</label>
-                    <input type="date" id="end-date">
-                </div>
+                <div style="flex:1"><label>2. Start Date</label><input type="date" id="start-date"></div>
+                <div style="flex:1"><label>3. End Date</label><input type="date" id="end-date"></div>
             </div>
             
             <div class="btn-group">
                 <button class="btn-gen" onclick="generateReport()">Generate View</button>
-                <button id="pdf-btn" class="btn-pdf" onclick="downloadPDF()">📄 Download PDF</button>
+                <button id="pdf-btn" class="btn-pdf" onclick="downloadPDF()">📄 PDF</button>
+                <button id="link-btn" class="btn-link" onclick="createShareLink()">🔗 Create Payment Link</button>
+            </div>
+
+            <div id="share-area">
+                <span class="link-text" id="final-link">...</span>
+                <button onclick="window.openWhatsApp()" style="background:#25D366; color:white; width:auto; padding:8px 20px;">Share on WhatsApp 💬</button>
             </div>
         </div>
 
-        <div id="result-area" class="report-result">
+        <div id="result-area" style="display:none; margin-top:20px;">
             <div style="background:#10b981; color:white; padding:15px; text-align:center; font-weight:bold; border-radius:5px;">
                 Total: ₹<span id="screen-total">0</span>
             </div>
             <table id="screen-table">
-                <thead><tr><th>Worker</th><th>Date</th><th>Codes</th><th>Amount</th></tr></thead>
+                <thead><tr><th>Worker</th><th>Date</th><th>Work</th><th>Amount</th></tr></thead>
                 <tbody id="screen-list"></tbody>
             </table>
         </div>
 
-        <a href="index.html" class="back-btn">🔙 Back to Dashboard</a>
+        <a href="index.html" style="display:block; text-align:center; margin-top:20px; color:#666;">🔙 Back to Dashboard</a>
     </div>
 
     <div id="invoice-box">
         <div class="inv-header">
-            <div>
-                <div class="inv-title">INVOICE</div>
-                <div style="margin-top:5px;"><b>From:</b> Your Contractor Agency</div>
-            </div>
-            <div class="inv-details">
-                <div><b>To:</b> <span id="inv-company">Company Name</span></div>
-                <div><b>Date:</b> <span id="inv-date">...</span></div>
-            </div>
+            <div class="inv-title">INVOICE</div>
+            <div><b>TrustGig Services</b></div>
         </div>
-        
-        <table style="width:100%; border:1px solid #ddd; border-collapse: collapse; font-size: 0.9rem;">
-            <thead style="background:#eee;">
-                <tr>
-                    <th style="padding:8px; border:1px solid #ccc;">Worker</th>
-                    <th style="padding:8px; border:1px solid #ccc;">Date</th>
-                    <th style="padding:8px; border:1px solid #ccc;">Work Description</th>
-                    <th style="padding:8px; border:1px solid #ccc; text-align:right;">Amount</th>
-                </tr>
-            </thead>
-            <tbody id="invoice-list">
-                </tbody>
+        <div style="margin-bottom:20px;">
+            <div class="bill-label">BILL TO</div>
+            <div style="font-size:1.4rem; font-weight:bold;" id="inv-client-name">Client</div>
+        </div>
+        <table style="width:100%; border:1px solid #ddd;">
+            <thead style="background:#eee;"><tr><th style="padding:10px;">Description</th><th style="padding:10px; text-align:right;">Amount</th></tr></thead>
+            <tbody id="invoice-list"></tbody>
         </table>
-
-        <div class="inv-total">
-            Total Due: ₹<span id="inv-total-amt">0</span>
-        </div>
-        <div style="margin-top:30px; font-size:0.8rem; color:#666; text-align:center;">
-            Thank you for your business!
-        </div>
+        <div style="text-align:right; font-size:1.5rem; font-weight:bold; margin-top:20px;">Total: ₹<span id="inv-total-amt">0</span></div>
     </div>
 
     <script type="module">
-        import { db, collection, getDocs } from './db.js';
+        import { db, collection, getDocs, addDoc } from './db.js';
+
+        let currentInvoiceData = null; // Store data to save later
 
         window.onload = async function() {
-            const select = document.getElementById('company-select');
-            const snapshot = await getDocs(collection(db, "companies"));
+            const select = document.getElementById('client-select');
+            const snapshot = await getDocs(collection(db, "clients"));
             snapshot.forEach(doc => {
                 const opt = document.createElement('option');
-                opt.value = doc.data().name;
-                opt.text = doc.data().name;
+                opt.value = doc.data().name; opt.text = doc.data().name;
                 select.appendChild(opt);
             });
         };
 
         window.generateReport = async function() {
-            const company = document.getElementById('company-select').value;
+            const clientName = document.getElementById('client-select').value;
             const startVal = document.getElementById('start-date').value;
             const endVal = document.getElementById('end-date').value;
 
-            if(!company || !startVal || !endVal) { alert("Select all fields!"); return; }
-
-            const btn = document.querySelector('.btn-gen');
-            btn.innerText = "⏳ ...";
+            if(!clientName || !startVal || !endVal) { alert("Select all fields!"); return; }
 
             const startDate = new Date(startVal); startDate.setHours(0,0,0,0);
             const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
 
             let grandTotal = 0;
+            let items = []; // We will save this array to DB
             const screenList = document.getElementById('screen-list');
             const invList = document.getElementById('invoice-list');
             
-            screenList.innerHTML = ''; 
-            invList.innerHTML = '';
+            screenList.innerHTML = ''; invList.innerHTML = '';
 
-            try {
-                const workersSnap = await getDocs(collection(db, "workers"));
-                
-                workersSnap.forEach(doc => {
-                    const worker = doc.data();
-                    (worker.history || []).forEach(log => {
-                        if (log.company === company) {
-                            const logDate = new Date(log.date);
-                            if (logDate >= startDate && logDate <= endDate) {
-                                grandTotal += Number(log.amount);
-                                
-                                const rowHTML = `
-                                    <td>${worker.name}</td>
-                                    <td>${log.date.split(',')[0]}</td>
-                                    <td>${log.codes}</td>
-                                    <td style="text-align:right;">₹${log.amount}</td>
-                                `;
-                                screenList.innerHTML += `<tr>${rowHTML}</tr>`;
-                                
-                                invList.innerHTML += `
-                                    <tr>
-                                        <td style="padding:8px; border:1px solid #ccc;">${worker.name}</td>
-                                        <td style="padding:8px; border:1px solid #ccc;">${log.date.split(',')[0]}</td>
-                                        <td style="padding:8px; border:1px solid #ccc;">${log.codes}</td>
-                                        <td style="padding:8px; border:1px solid #ccc; text-align:right;">₹${log.amount}</td>
-                                    </tr>
-                                `;
-                            }
+            const workersSnap = await getDocs(collection(db, "workers"));
+            workersSnap.forEach(doc => {
+                const worker = doc.data();
+                (worker.history || []).forEach(log => {
+                    if (log.company === clientName) {
+                        const logDate = new Date(log.date);
+                        if (logDate >= startDate && logDate <= endDate) {
+                            grandTotal += Number(log.amount);
+                            
+                            // Add to our data list
+                            items.push({
+                                worker: worker.name,
+                                date: log.date.split(',')[0],
+                                desc: log.codes,
+                                amount: log.amount
+                            });
+
+                            const row = `<td>${worker.name}</td><td>${log.date.split(',')[0]}</td><td>${log.codes}</td><td>₹${log.amount}</td>`;
+                            screenList.innerHTML += `<tr>${row}</tr>`;
+                            invList.innerHTML += `<tr><td style="padding:10px;">${log.codes} <br><small style="color:#666">${worker.name}</small></td><td style="padding:10px; text-align:right;">₹${log.amount}</td></tr>`;
                         }
-                    });
+                    }
                 });
+            });
 
-                document.getElementById('screen-total').innerText = grandTotal;
-                document.getElementById('inv-total-amt').innerText = grandTotal;
-                document.getElementById('inv-company').innerText = company;
-                document.getElementById('inv-date').innerText = new Date().toLocaleDateString();
+            document.getElementById('screen-total').innerText = grandTotal;
+            document.getElementById('inv-total-amt').innerText = grandTotal;
+            document.getElementById('inv-client-name').innerText = clientName;
+            
+            // Store data for the "Create Link" button
+            currentInvoiceData = {
+                clientName: clientName,
+                total: grandTotal,
+                items: items,
+                createdAt: new Date().toLocaleString(),
+                status: "pending"
+            };
 
-                document.getElementById('result-area').style.display = 'block';
-                document.getElementById('pdf-btn').style.display = 'block';
+            document.getElementById('result-area').style.display = 'block';
+            document.getElementById('pdf-btn').style.display = 'block';
+            document.getElementById('link-btn').style.display = 'block'; // Show Link Button
+        }
 
-            } catch(e) { console.error(e); alert("Error generating report."); }
+        window.createShareLink = async function() {
+            if (!currentInvoiceData) return;
+            const btn = document.getElementById('link-btn');
+            btn.innerText = "⏳ Saving...";
+            
+            try {
+                // 1. Save to Cloud
+                const docRef = await addDoc(collection(db, "invoices"), currentInvoiceData);
+                
+                // 2. Generate Link
+                // Note: window.location.origin gives "https://your-app.web.app"
+                const link = `${window.location.origin}/bill.html?id=${docRef.id}`;
+                
+                document.getElementById('final-link').innerText = link;
+                document.getElementById('share-area').style.display = 'block';
+                btn.innerText = "✅ Link Created";
 
-            btn.innerText = "Generate View";
+            } catch (e) { alert("Error: " + e.message); }
+        }
+
+        window.openWhatsApp = function() {
+            const link = document.getElementById('final-link').innerText;
+            const msg = `Hello! Here is your invoice from TrustGig. Please view and approve it here: ${link}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
         }
 
         window.downloadPDF = function() {
             const element = document.getElementById('invoice-box');
             element.style.display = 'block'; 
-            
-            const opt = {
-                margin:       0.5,
-                filename:     `Invoice_${document.getElementById('inv-company').innerText}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2 },
-                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
-            };
-
-            html2pdf().set(opt).from(element).save().then(() => {
-                element.style.display = 'none';
-            });
+            html2pdf().from(element).save().then(() => { element.style.display = 'none'; });
         }
     </script>
 </body>

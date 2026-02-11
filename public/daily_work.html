@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Work Log</title>
+    <title>Log Work for Client</title>
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; }
@@ -28,7 +28,7 @@
 <body>
 
     <div class="container">
-        <h2>📝 Log Work</h2>
+        <h2>📝 Log Client Work</h2>
 
         <div class="form-group">
             <label>Select Worker:</label>
@@ -36,9 +36,9 @@
         </div>
 
         <div class="form-group">
-            <label>Select Company:</label>
-            <select id="company-select">
-                <option value="">-- Choose Company --</option>
+            <label>Select Client:</label>
+            <select id="client-select">
+                <option value="">-- Choose Client --</option>
             </select>
         </div>
 
@@ -48,7 +48,7 @@
 
         <div class="total-box">Total: ₹<span id="total-earnings">0</span></div>
 
-        <button class="save-btn" onclick="window.submitWork()">✅ Submit Work</button>
+        <button class="save-btn" onclick="window.submitWork()">✅ Save to Client Account</button>
         <button class="back-btn" onclick="window.location.href='index.html'">Cancel</button>
     </div>
 
@@ -62,7 +62,7 @@
             for(let i=0; i<4; i++) {
                 container.innerHTML += `
                     <div class="machine-row">
-                        <input type="text" class="code-input" placeholder="Code">
+                        <input type="text" class="code-input" placeholder="Work Description">
                         <input type="number" class="price-input" placeholder="₹" oninput="window.calculateTotal()">
                     </div>`;
             }
@@ -78,14 +78,17 @@
                 });
             });
 
-            // Load Companies (NEW)
-            const compSelect = document.getElementById('company-select');
-            getDocs(collection(db, "companies")).then(snap => {
+            // Load CLIENTS (Changed from Companies)
+            const clientSelect = document.getElementById('client-select');
+            getDocs(collection(db, "clients")).then(snap => {
                 snap.forEach(d => {
                     const opt = document.createElement('option');
-                    opt.value = d.data().name; 
+                    // We save the ID in value, but show Name in text
+                    opt.value = d.id; 
                     opt.text = d.data().name;
-                    compSelect.appendChild(opt);
+                    // We store the name in a dataset so we can grab it easily
+                    opt.setAttribute('data-name', d.data().name);
+                    clientSelect.appendChild(opt);
                 });
             });
         };
@@ -99,17 +102,19 @@
 
         window.submitWork = async function() {
             const workerId = document.getElementById('worker-select').value;
-            const companyName = document.getElementById('company-select').value;
+            const clientSelect = document.getElementById('client-select');
+            const clientId = clientSelect.value;
+            const clientName = clientSelect.options[clientSelect.selectedIndex].getAttribute('data-name');
             const total = window.calculateTotal();
 
             if (!workerId) { alert("Select a worker!"); return; }
-            if (!companyName) { alert("Select a Company!"); return; } // Validate Company
+            if (!clientId) { alert("Select a Client!"); return; } 
             if (total === 0) { alert("Enter amount!"); return; }
 
             // Collect Details
             let details = [];
             document.querySelectorAll('.machine-row').forEach(row => {
-                const c = row.querySelector('.code-input').value.toUpperCase();
+                const c = row.querySelector('.code-input').value; // Removed uppercase to allow description
                 const p = row.querySelector('.price-input').value;
                 if(c && p) details.push(`${c}(₹${p})`);
             });
@@ -120,7 +125,8 @@
                 if(snap.exists()) {
                     const newLog = {
                         date: new Date().toLocaleString(),
-                        company: companyName, // SAVING COMPANY NAME HERE
+                        company: clientName, // Save Client Name here for display
+                        clientId: clientId,  // Save ID for future "Smart Invoice" features
                         codes: details.join(", "),
                         amount: total
                     };
@@ -130,7 +136,7 @@
                         history: arrayUnion(newLog)
                     });
                     
-                    alert("Saved!");
+                    alert("Saved to " + clientName + "'s Account!");
                     window.location.href = 'index.html';
                 }
             } catch(e) { alert(e.message); }

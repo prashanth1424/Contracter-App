@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Invoice</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; display: flex; justify-content: center; }
+        .bill-card { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+        
+        /* HEADER */
+        .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; }
+        .status-pending { background: #fef3c7; color: #d97706; }
+        .status-paid { background: #dcfce7; color: #166534; }
+
+        h1 { margin: 0; color: #1f2937; font-size: 1.8rem; }
+        .sub-text { color: #6b7280; margin-bottom: 20px; font-size: 0.9rem; }
+
+        /* AMOUNT BOX */
+        .amount-box { text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1; }
+        .total-label { color: #64748b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .total-price { font-size: 2.5rem; font-weight: bold; color: #0f172a; margin: 5px 0; }
+        
+        /* LIST */
+        .item-list { border-top: 1px solid #e2e8f0; margin-top: 20px; }
+        .item-row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
+        .item-desc { font-weight: 600; color: #334155; }
+        .item-date { font-size: 0.8rem; color: #94a3b8; display: block; margin-top: 2px; }
+        .item-price { font-weight: bold; color: #0f172a; }
+
+        /* PAY BUTTON */
+        .pay-btn { display: block; width: 100%; background: #2563eb; color: white; padding: 15px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 20px; text-decoration: none; text-align: center; }
+        .pay-btn:hover { background: #1d4ed8; }
+        
+        .footer { text-align: center; margin-top: 30px; font-size: 0.8rem; color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <div class="bill-card">
+        <div id="status-area" class="status-badge status-pending">⏳ Payment Pending</div>
+        
+        <h1 id="client-name">Loading...</h1>
+        <div class="sub-text">Invoice #<span id="inv-id">...</span></div>
+
+        <div class="amount-box">
+            <div class="total-label">Total Amount Due</div>
+            <div class="total-price">₹<span id="total-amt">0</span></div>
+        </div>
+
+        <div class="item-list" id="work-list">
+            </div>
+
+        <a id="pay-link" href="#" class="pay-btn">✅ Verify & Approve Payment</a>
+        
+        <div class="footer">
+            Powered by <b>TrustGig</b> Secure Escrow
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, doc, getDoc } from './db.js';
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const invoiceId = urlParams.get('id');
+
+        async function loadBill() {
+            if (!invoiceId) { document.body.innerHTML = "No Invoice ID found."; return; }
+
+            try {
+                // Fetch from the 'invoices' collection (We will create this next)
+                const docRef = doc(db, "invoices", invoiceId);
+                const snap = await getDoc(docRef);
+
+                if (snap.exists()) {
+                    const data = snap.data();
+                    
+                    document.getElementById('client-name').innerText = "Hi, " + data.clientName;
+                    document.getElementById('inv-id').innerText = invoiceId.slice(0, 6).toUpperCase();
+                    document.getElementById('total-amt').innerText = data.total;
+                    
+                    const list = document.getElementById('work-list');
+                    data.items.forEach(item => {
+                        list.innerHTML += `
+                            <div class="item-row">
+                                <div>
+                                    <div class="item-desc">${item.desc}</div>
+                                    <span class="item-date">${item.date} • ${item.worker}</span>
+                                </div>
+                                <div class="item-price">₹${item.amount}</div>
+                            </div>
+                        `;
+                    });
+
+                    // Logic for Paid Status
+                    if(data.status === 'paid') {
+                        document.getElementById('status-area').className = 'status-badge status-paid';
+                        document.getElementById('status-area').innerText = '✅ Paid';
+                        document.getElementById('pay-link').style.display = 'none'; // Hide button if paid
+                    }
+
+                } else {
+                    document.body.innerHTML = "<h2>Invoice not found or expired.</h2>";
+                }
+            } catch (e) { console.error(e); }
+        }
+
+        loadBill();
+    </script>
+</body>
+</html>

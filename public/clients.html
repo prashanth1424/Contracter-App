@@ -22,6 +22,7 @@
         button:active { transform: scale(0.98); }
         
         .btn-add { background: #2563eb; color: white; width: 100%; padding: 12px; font-size: 1rem; }
+        .btn-cancel { background: #6b7280; color: white; width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px; display: none; } /* Hidden by default */
         .btn-back { background: #4b5563; color: white; width: 100%; padding: 12px; margin-top: 20px; }
         
         /* CLIENT LIST ITEM */
@@ -34,8 +35,10 @@
         .client-details { color: #666; font-size: 0.85rem; margin-top: 2px; }
         
         .action-btns { display: flex; gap: 8px; }
-        .btn-icon { padding: 8px 12px; font-size: 1.2rem; border-radius: 6px; }
-        .btn-call { background: #dcfce7; color: #166534; text-decoration: none; }
+        .btn-icon { padding: 8px 12px; font-size: 1.2rem; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-call { background: #dcfce7; color: #166534; }
+        .btn-wa { background: #dbeafe; color: #1e40af; }
+        .btn-edit { background: #fef9c3; color: #854d0e; } /* Yellow for Edit */
         .btn-del { background: #fee2e2; color: #991b1b; }
 
     </style>
@@ -46,8 +49,10 @@
     <div class="container">
         
         <div class="card" style="border-top: 5px solid #2563eb;">
-            <h2>🤝 Add New Client</h2>
+            <h2 id="form-title">🤝 Add New Client</h2>
             
+            <input type="hidden" id="edit-id">
+
             <div class="input-group">
                 <label>Client Name</label>
                 <input type="text" id="c-name" placeholder="e.g. Ravi Sharma">
@@ -63,7 +68,8 @@
                 <input type="text" id="c-loc" placeholder="e.g. Banjara Hills, Flat 402">
             </div>
 
-            <button class="btn-add" onclick="window.addClient()">Save Client</button>
+            <button id="save-btn" class="btn-add" onclick="window.saveClient()">Save Client</button>
+            <button id="cancel-btn" class="btn-cancel" onclick="window.cancelEdit()">Cancel Edit</button>
         </div>
 
         <div class="card">
@@ -77,7 +83,7 @@
     </div>
 
     <script type="module">
-        import { db, collection, addDoc, onSnapshot, deleteDoc, doc } from './db.js';
+        import { db, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from './db.js';
 
         // 1. REAL-TIME LISTENER
         onSnapshot(collection(db, "clients"), (snapshot) => {
@@ -93,6 +99,8 @@
                 const client = docSnap.data();
                 const div = document.createElement('div');
                 div.className = 'client-item';
+                
+                // We pass data safely to the edit function using quotes
                 div.innerHTML = `
                     <div class="client-info">
                         <div class="client-name">${client.name}</div>
@@ -100,7 +108,10 @@
                     </div>
                     <div class="action-btns">
                         <a href="tel:${client.phone}" class="btn-icon btn-call">📞</a>
-                        <a href="https://wa.me/91${client.phone}" target="_blank" class="btn-icon btn-call" style="background:#dbeafe; color:#1e40af;">💬</a>
+                        <a href="https://wa.me/91${client.phone}" target="_blank" class="btn-icon btn-wa">💬</a>
+                        
+                        <button class="btn-icon btn-edit" onclick="window.startEdit('${docSnap.id}', '${client.name}', '${client.phone}', '${client.location}')">✏️</button>
+                        
                         <button class="btn-icon btn-del" onclick="window.deleteClient('${docSnap.id}')">🗑</button>
                     </div>
                 `;
@@ -108,38 +119,80 @@
             });
         });
 
-        // 2. ADD CLIENT FUNCTION
-        window.addClient = async function() {
+        // 2. SAVE CLIENT (Handles Both ADD and UPDATE)
+        window.saveClient = async function() {
+            const id = document.getElementById('edit-id').value; // Check hidden ID
             const name = document.getElementById('c-name').value;
             const phone = document.getElementById('c-phone').value;
             const loc = document.getElementById('c-loc').value;
 
             if(!name || !phone) { alert("Name and Phone are required!"); return; }
 
-            const btn = document.querySelector('.btn-add');
-            btn.innerText = "Saving...";
+            const btn = document.getElementById('save-btn');
+            const originalText = btn.innerText;
+            btn.innerText = "Processing...";
             
             try {
-                await addDoc(collection(db, "clients"), {
-                    name: name,
-                    phone: phone,
-                    location: loc || "Unknown",
-                    joinedAt: new Date().toLocaleString()
-                });
-                
-                // Clear inputs
-                document.getElementById('c-name').value = '';
-                document.getElementById('c-phone').value = '';
-                document.getElementById('c-loc').value = '';
-                btn.innerText = "Save Client";
-                
+                if (id) {
+                    // --- UPDATE MODE ---
+                    await updateDoc(doc(db, "clients", id), {
+                        name: name,
+                        phone: phone,
+                        location: loc || "Unknown"
+                    });
+                    alert("Client Updated!");
+                    window.cancelEdit(); // Reset form
+                } else {
+                    // --- ADD NEW MODE ---
+                    await addDoc(collection(db, "clients"), {
+                        name: name,
+                        phone: phone,
+                        location: loc || "Unknown",
+                        joinedAt: new Date().toLocaleString()
+                    });
+                    // Clear inputs manually if not editing
+                    document.getElementById('c-name').value = '';
+                    document.getElementById('c-phone').value = '';
+                    document.getElementById('c-loc').value = '';
+                }
             } catch (e) {
                 alert("Error: " + e.message);
-                btn.innerText = "Save Client";
             }
+            btn.innerText = originalText;
         }
 
-        // 3. DELETE CLIENT FUNCTION
+        // 3. START EDITING (Fills the form)
+        window.startEdit = function(id, name, phone, loc) {
+            document.getElementById('edit-id').value = id;
+            document.getElementById('c-name').value = name;
+            document.getElementById('c-phone').value = phone;
+            document.getElementById('c-loc').value = loc;
+
+            // Change UI to Edit Mode
+            document.getElementById('form-title').innerText = "✏️ Edit Client";
+            document.getElementById('save-btn').innerText = "Update Client";
+            document.getElementById('save-btn').style.backgroundColor = "#eab308"; // Yellow-ish
+            document.getElementById('cancel-btn').style.display = "block";
+
+            // Scroll to top so user sees the form
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // 4. CANCEL EDIT
+        window.cancelEdit = function() {
+            document.getElementById('edit-id').value = '';
+            document.getElementById('c-name').value = '';
+            document.getElementById('c-phone').value = '';
+            document.getElementById('c-loc').value = '';
+
+            // Reset UI
+            document.getElementById('form-title').innerText = "🤝 Add New Client";
+            document.getElementById('save-btn').innerText = "Save Client";
+            document.getElementById('save-btn').style.backgroundColor = "#2563eb"; // Blue
+            document.getElementById('cancel-btn').style.display = "none";
+        }
+
+        // 5. DELETE CLIENT
         window.deleteClient = async function(id) {
             if(confirm("Delete this client permanently?")) {
                 await deleteDoc(doc(db, "clients", id));
