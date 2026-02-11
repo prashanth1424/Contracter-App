@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker Camera</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #000; color: white; text-align: center; padding: 20px; display:flex; flex-direction:column; align-items:center; min-height:100vh; }
+        
+        h2 { margin-bottom: 10px; }
+        .welcome-msg { color: #10b981; font-weight: bold; margin-bottom: 30px; font-size: 1.2rem; }
+
+        .camera-box { 
+            width: 100%; max-width: 400px; height: 300px; 
+            border: 2px dashed #666; display: flex; justify-content: center; align-items: center; 
+            margin-bottom: 20px; background: #111; overflow: hidden; position: relative;
+        }
+        #preview { max-width: 100%; max-height: 100%; display: none; }
+        
+        .btn { width: 100%; max-width: 300px; padding: 15px; border-radius: 30px; border: none; font-size: 1.2rem; font-weight: bold; margin-bottom: 15px; cursor: pointer; }
+        .btn-cam { background: #2563eb; color: white; }
+        .btn-send { background: #10b981; color: white; display: none; }
+        .btn-logout { background: #374151; color: white; font-size: 0.9rem; padding: 10px; margin-top: auto; }
+    </style>
+    <script>
+        if (!sessionStorage.getItem('workerName')) { window.location.href = 'login.html'; }
+    </script>
+</head>
+<body>
+
+    <h2>📷 Work Camera</h2>
+    <div class="welcome-msg">Hi, <span id="display-name">...</span> 👋</div>
+
+    <input type="file" id="camera-input" accept="image/*" capture="environment" style="display:none" onchange="window.showPreview()">
+
+    <div class="camera-box" onclick="document.getElementById('camera-input').click()">
+        <span id="placeholder">Tap to Take Photo</span>
+        <img id="preview">
+    </div>
+
+    <button class="btn btn-cam" onclick="document.getElementById('camera-input').click()">📸 Take Photo</button>
+    <button id="send-btn" class="btn btn-send" onclick="window.sendToOwner()">🚀 Send to Owner</button>
+    
+    <button class="btn btn-logout" onclick="window.logout()">Logout</button>
+
+    <script type="module">
+        import { db, collection, addDoc } from './db.js';
+
+        // 1. Show Name
+        document.getElementById('display-name').innerText = sessionStorage.getItem('workerName');
+
+        // 2. Image Logic (Same as before)
+        let currentImageBase64 = "";
+
+        window.showPreview = function() {
+            const file = document.getElementById('camera-input').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.src = e.target.result;
+                    img.onload = function() {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const maxWidth = 800;
+                        const scaleSize = maxWidth / img.width;
+                        canvas.width = maxWidth;
+                        canvas.height = img.height * scaleSize;
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        currentImageBase64 = canvas.toDataURL('image/jpeg', 0.7);
+                        
+                        document.getElementById('preview').src = currentImageBase64;
+                        document.getElementById('preview').style.display = "block";
+                        document.getElementById('placeholder').style.display = "none";
+                        document.getElementById('send-btn').style.display = "block";
+                    }
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // 3. Send Logic (Auto-attaches Worker Name)
+        window.sendToOwner = async function() {
+            const workerName = sessionStorage.getItem('workerName'); // Automatic!
+
+            const uploadData = {
+                worker: workerName,
+                image: currentImageBase64,
+                time: new Date().toLocaleString(), // Human Readable (e.g. "1/22/2026")
+                timestamp: Date.now(),             // ADDED: Computer Readable (e.g. 1769324...)
+                status: "pending"
+            };
+
+            try {
+                const btn = document.getElementById('send-btn');
+                btn.innerText = "⏳ Sending...";
+                btn.disabled = true;
+
+                await addDoc(collection(db, "inbox"), uploadData);
+
+                alert("Photo Sent Successfully!");
+                location.reload();
+            } catch (e) {
+                alert("Error: " + e.message);
+                document.getElementById('send-btn').innerText = "🚀 Send to Owner";
+                document.getElementById('send-btn').disabled = false;
+            }
+        }
+
+        window.logout = function() {
+            sessionStorage.clear();
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

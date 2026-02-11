@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Work Log</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; }
+        
+        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #4b5563; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; box-sizing: border-box; }
+        
+        .machine-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .code-input { flex: 3; text-transform: uppercase; }
+        .price-input { flex: 2; font-weight: bold; color: #2563eb; }
+        
+        .total-box { background: #e0f2fe; padding: 15px; border-radius: 5px; text-align: center; font-size: 1.2rem; font-weight: bold; color: #0369a1; margin: 20px 0; }
+        
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .save-btn { background-color: #10b981; color: white; }
+        .back-btn { background-color: #e5e7eb; color: #374151; }
+    </style>
+    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📝 Log Work</h2>
+
+        <div class="form-group">
+            <label>Select Worker:</label>
+            <select id="worker-select"><option>Loading...</option></select>
+        </div>
+
+        <div class="form-group">
+            <label>Select Company:</label>
+            <select id="company-select">
+                <option value="">-- Choose Company --</option>
+            </select>
+        </div>
+
+        <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+
+        <div id="machine-inputs"></div>
+
+        <div class="total-box">Total: ₹<span id="total-earnings">0</span></div>
+
+        <button class="save-btn" onclick="window.submitWork()">✅ Submit Work</button>
+        <button class="back-btn" onclick="window.location.href='index.html'">Cancel</button>
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs, doc, getDoc, updateDoc, arrayUnion } from './db.js';
+
+        window.onload = async function() {
+            // Generate Input Boxes
+            const container = document.getElementById('machine-inputs');
+            container.innerHTML = '';
+            for(let i=0; i<4; i++) {
+                container.innerHTML += `
+                    <div class="machine-row">
+                        <input type="text" class="code-input" placeholder="Code">
+                        <input type="number" class="price-input" placeholder="₹" oninput="window.calculateTotal()">
+                    </div>`;
+            }
+
+            // Load Workers
+            const workerSelect = document.getElementById('worker-select');
+            getDocs(collection(db, "workers")).then(snap => {
+                workerSelect.innerHTML = '<option value="">-- Choose Worker --</option>';
+                snap.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.id; opt.text = d.data().name;
+                    workerSelect.appendChild(opt);
+                });
+            });
+
+            // Load Companies (NEW)
+            const compSelect = document.getElementById('company-select');
+            getDocs(collection(db, "companies")).then(snap => {
+                snap.forEach(d => {
+                    const opt = document.createElement('option');
+                    opt.value = d.data().name; 
+                    opt.text = d.data().name;
+                    compSelect.appendChild(opt);
+                });
+            });
+        };
+
+        window.calculateTotal = function() {
+            let total = 0;
+            document.querySelectorAll('.price-input').forEach(input => total += Number(input.value));
+            document.getElementById('total-earnings').innerText = total;
+            return total;
+        }
+
+        window.submitWork = async function() {
+            const workerId = document.getElementById('worker-select').value;
+            const companyName = document.getElementById('company-select').value;
+            const total = window.calculateTotal();
+
+            if (!workerId) { alert("Select a worker!"); return; }
+            if (!companyName) { alert("Select a Company!"); return; } // Validate Company
+            if (total === 0) { alert("Enter amount!"); return; }
+
+            // Collect Details
+            let details = [];
+            document.querySelectorAll('.machine-row').forEach(row => {
+                const c = row.querySelector('.code-input').value.toUpperCase();
+                const p = row.querySelector('.price-input').value;
+                if(c && p) details.push(`${c}(₹${p})`);
+            });
+
+            try {
+                const workerRef = doc(db, "workers", workerId);
+                const snap = await getDoc(workerRef);
+                if(snap.exists()) {
+                    const newLog = {
+                        date: new Date().toLocaleString(),
+                        company: companyName, // SAVING COMPANY NAME HERE
+                        codes: details.join(", "),
+                        amount: total
+                    };
+                    
+                    await updateDoc(workerRef, {
+                        earnings: (snap.data().earnings || 0) + total,
+                        history: arrayUnion(newLog)
+                    });
+                    
+                    alert("Saved!");
+                    window.location.href = 'index.html';
+                }
+            } catch(e) { alert(e.message); }
+        }
+    </script>
+</body>
+</html>

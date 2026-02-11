@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #1f2937; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+        .main-container { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 350px; }
+        
+        .login-box { background: white; padding: 25px; border-radius: 10px; text-align: center; }
+        h2 { margin-top: 0; color: #333; font-size: 1.2rem; }
+        
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 1rem; }
+        
+        .btn-owner { background: #2563eb; color: white; }
+        .btn-worker { background: #10b981; color: white; }
+        
+        .divider { text-align: center; color: #9ca3af; font-size: 0.9rem; margin: 5px 0; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        
+        <div class="login-box" style="border-top: 5px solid #2563eb;">
+            <h2>👤 Owner Login</h2>
+            <input type="password" id="owner-pin" maxlength="4" placeholder="Enter PIN">
+            <button class="btn-owner" onclick="checkOwner()">Unlock Dashboard</button>
+        </div>
+
+        <div class="divider">OR</div>
+
+        <div class="login-box" style="border-top: 5px solid #10b981;">
+            <h2>👷 Worker Login</h2>
+            <input type="number" id="w-phone" placeholder="Phone Number">
+            <input type="password" id="w-pass" placeholder="Password">
+            <button class="btn-worker" onclick="checkWorker()">Login as Worker</button>
+        </div>
+
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs, query, where } from './db.js';
+
+        // 1. Owner Logic - Attached to 'window' so the button can see it
+        window.checkOwner = function() {
+            const pin = document.getElementById('owner-pin').value;
+            const correctPin = "0462"; // Your Owner PIN
+            
+            // Note: Make sure you compare String to String
+            if (pin === correctPin) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                window.location.href = 'index.html';
+            } else {
+                alert("Wrong Owner PIN!");
+            }
+        }
+
+        // 2. Worker Logic - Attached to 'window'
+        window.checkWorker = async function() {
+            const phone = document.getElementById('w-phone').value;
+            const pass = document.getElementById('w-pass').value;
+            const btn = document.querySelector('.btn-worker');
+
+            if(!phone || !pass) { alert("Enter Phone & Password"); return; }
+
+            btn.innerText = "Checking...";
+            
+            try {
+                // Search DB for worker with this phone & password
+                const q = query(collection(db, "workers"), where("phone", "==", phone), where("password", "==", pass));
+                const snapshot = await getDocs(q);
+
+                if (!snapshot.empty) {
+                    // Success! Found the worker.
+                    const workerDoc = snapshot.docs[0];
+                    const workerData = workerDoc.data();
+                    
+                    // Save their info so the next page knows who they are
+                    sessionStorage.setItem('workerId', workerDoc.id);
+                    sessionStorage.setItem('workerName', workerData.name);
+                    
+                    window.location.href = 'worker_app.html';
+                } else {
+                    alert("Wrong Phone or Password!");
+                    btn.innerText = "Login as Worker";
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Login Error: " + e.message);
+                btn.innerText = "Login as Worker";
+            }
+        }
+    </script>
+</body>
+</html>

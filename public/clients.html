@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Clients</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        /* CARD STYLE */
+        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        h2 { margin-top: 0; color: #1f2937; display: flex; align-items: center; gap: 10px; }
+        
+        /* FORM INPUTS */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; color: #4b5563; margin-bottom: 5px; font-size: 0.9rem; }
+        input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        
+        /* BUTTONS */
+        button { cursor: pointer; border: none; font-weight: bold; border-radius: 8px; transition: transform 0.1s; }
+        button:active { transform: scale(0.98); }
+        
+        .btn-add { background: #2563eb; color: white; width: 100%; padding: 12px; font-size: 1rem; }
+        .btn-back { background: #4b5563; color: white; width: 100%; padding: 12px; margin-top: 20px; }
+        
+        /* CLIENT LIST ITEM */
+        .client-item { 
+            display: flex; justify-content: space-between; align-items: center; 
+            padding: 15px; border-bottom: 1px solid #eee; 
+        }
+        .client-info { flex: 1; }
+        .client-name { font-weight: bold; color: #111; font-size: 1.1rem; }
+        .client-details { color: #666; font-size: 0.85rem; margin-top: 2px; }
+        
+        .action-btns { display: flex; gap: 8px; }
+        .btn-icon { padding: 8px 12px; font-size: 1.2rem; border-radius: 6px; }
+        .btn-call { background: #dcfce7; color: #166534; text-decoration: none; }
+        .btn-del { background: #fee2e2; color: #991b1b; }
+
+    </style>
+    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+</head>
+<body>
+
+    <div class="container">
+        
+        <div class="card" style="border-top: 5px solid #2563eb;">
+            <h2>🤝 Add New Client</h2>
+            
+            <div class="input-group">
+                <label>Client Name</label>
+                <input type="text" id="c-name" placeholder="e.g. Ravi Sharma">
+            </div>
+            
+            <div class="input-group">
+                <label>Phone Number</label>
+                <input type="tel" id="c-phone" placeholder="e.g. 9876543210">
+            </div>
+
+            <div class="input-group">
+                <label>Location / Project Name</label>
+                <input type="text" id="c-loc" placeholder="e.g. Banjara Hills, Flat 402">
+            </div>
+
+            <button class="btn-add" onclick="window.addClient()">Save Client</button>
+        </div>
+
+        <div class="card">
+            <h2>📇 Client List</h2>
+            <div id="client-list">
+                <div style="text-align:center; color:#999; padding:20px;">Loading...</div>
+            </div>
+        </div>
+
+        <button class="btn-back" onclick="window.location.href='index.html'">🔙 Back to Dashboard</button>
+    </div>
+
+    <script type="module">
+        import { db, collection, addDoc, onSnapshot, deleteDoc, doc } from './db.js';
+
+        // 1. REAL-TIME LISTENER
+        onSnapshot(collection(db, "clients"), (snapshot) => {
+            const list = document.getElementById('client-list');
+            list.innerHTML = '';
+
+            if (snapshot.empty) {
+                list.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">No clients added yet.</div>';
+                return;
+            }
+
+            snapshot.forEach(docSnap => {
+                const client = docSnap.data();
+                const div = document.createElement('div');
+                div.className = 'client-item';
+                div.innerHTML = `
+                    <div class="client-info">
+                        <div class="client-name">${client.name}</div>
+                        <div class="client-details">📞 ${client.phone} • 📍 ${client.location}</div>
+                    </div>
+                    <div class="action-btns">
+                        <a href="tel:${client.phone}" class="btn-icon btn-call">📞</a>
+                        <a href="https://wa.me/91${client.phone}" target="_blank" class="btn-icon btn-call" style="background:#dbeafe; color:#1e40af;">💬</a>
+                        <button class="btn-icon btn-del" onclick="window.deleteClient('${docSnap.id}')">🗑</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        });
+
+        // 2. ADD CLIENT FUNCTION
+        window.addClient = async function() {
+            const name = document.getElementById('c-name').value;
+            const phone = document.getElementById('c-phone').value;
+            const loc = document.getElementById('c-loc').value;
+
+            if(!name || !phone) { alert("Name and Phone are required!"); return; }
+
+            const btn = document.querySelector('.btn-add');
+            btn.innerText = "Saving...";
+            
+            try {
+                await addDoc(collection(db, "clients"), {
+                    name: name,
+                    phone: phone,
+                    location: loc || "Unknown",
+                    joinedAt: new Date().toLocaleString()
+                });
+                
+                // Clear inputs
+                document.getElementById('c-name').value = '';
+                document.getElementById('c-phone').value = '';
+                document.getElementById('c-loc').value = '';
+                btn.innerText = "Save Client";
+                
+            } catch (e) {
+                alert("Error: " + e.message);
+                btn.innerText = "Save Client";
+            }
+        }
+
+        // 3. DELETE CLIENT FUNCTION
+        window.deleteClient = async function(id) {
+            if(confirm("Delete this client permanently?")) {
+                await deleteDoc(doc(db, "clients", id));
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .card { background: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        h3 { margin-top: 0; color: #1f2937; border-bottom: 2px solid #eee; padding-bottom: 10px; }
+        
+        input { padding: 10px; width: 65%; border: 1px solid #ddd; border-radius: 5px; }
+        button { padding: 10px; cursor: pointer; border: none; border-radius: 5px; font-weight: bold; }
+        .btn-add { background: #2563eb; color: white; width: 30%; }
+        .btn-del { background: #ef4444; color: white; font-size: 0.8rem; padding: 5px 10px; }
+        
+        .list-item { display: flex; justify-content: space-between; padding: 10px; border-bottom: 1px solid #eee; align-items: center; }
+        .btn-backup { width: 100%; background: #4b5563; color: white; margin-top: 10px; padding: 15px; }
+    </style>
+    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+</head>
+<body>
+    <div class="container">
+        <h2>⚙️ Settings</h2>
+
+        <div class="card">
+            <h3>🏭 Manage Companies</h3>
+            <div style="display:flex; justify-content:space-between; margin-bottom:15px;">
+                <input type="text" id="new-company" placeholder="Company Name (e.g. Tata)">
+                <button class="btn-add" onclick="window.addCompany()">Add</button>
+            </div>
+            <div id="company-list">
+                </div>
+        </div>
+
+        <div class="card">
+            <h3>📊 Data & Reports</h3>
+            <p style="color:#666; font-size:0.9rem;">Download full report for analysis.</p>
+            <button id="export-btn" class="btn-backup" style="background-color: #0d9488;" onclick="window.exportToExcel()">📊 Export to Excel</button>
+        </div>
+
+        <button class="btn-backup" onclick="window.location.href='index.html'">🔙 Back to Dashboard</button>
+    </div>
+
+    <script type="module">
+        import { db, collection, addDoc, deleteDoc, doc, onSnapshot, getDocs } from './db.js';
+
+        // --- 1. Load Companies (Real-time) ---
+        onSnapshot(collection(db, "companies"), (snapshot) => {
+            const list = document.getElementById('company-list');
+            list.innerHTML = '';
+            snapshot.forEach(docSnap => {
+                const comp = docSnap.data();
+                const div = document.createElement('div');
+                div.className = 'list-item';
+                div.innerHTML = `
+                    <span>🏭 ${comp.name}</span>
+                    <button class="btn-del" onclick="window.deleteCompany('${docSnap.id}')">Delete</button>
+                `;
+                list.appendChild(div);
+            });
+        });
+
+        // --- 2. Add Company ---
+        window.addCompany = async function() {
+            const name = document.getElementById('new-company').value;
+            if(!name) return;
+            try {
+                await addDoc(collection(db, "companies"), { name: name });
+                document.getElementById('new-company').value = '';
+            } catch(e) { alert("Error: " + e.message); }
+        }
+
+        // --- 3. Delete Company ---
+        window.deleteCompany = async function(id) {
+            if(confirm("Remove this company?")) {
+                await deleteDoc(doc(db, "companies", id));
+            }
+        }
+
+        // --- 4. Excel Export (Updated to include History) ---
+        window.exportToExcel = async function() {
+            const btn = document.getElementById('export-btn');
+            btn.innerText = "⏳ Generating...";
+            try {
+                const snapshot = await getDocs(collection(db, "workers"));
+                let csv = "Worker Name, Current Work, Debt, Total Earned\n"; 
+                snapshot.forEach(doc => {
+                    const w = doc.data();
+                    csv += `"${w.name}", "${w.work}", ${w.debt}, ${w.earnings || 0}\n`;
+                });
+                
+                const link = document.createElement("a");
+                link.href = 'data:text/csv;charset=utf-8,' + encodeURI(csv);
+                link.download = `Report_${new Date().toISOString().slice(0,10)}.csv`;
+                link.click();
+                btn.innerText = "📊 Export to Excel";
+            } catch (e) {
+                console.error(e);
+                alert("Export failed.");
+                btn.innerText = "📊 Export to Excel";
+            }
+        }
+    </script>
+</body>
+</html>

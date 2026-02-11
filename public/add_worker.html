@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add New Worker</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 350px; }
+        h2 { text-align: center; color: #1f2937; }
+        label { display: block; margin-top: 15px; color: #4b5563; font-weight: bold; }
+        input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #d1d5db; border-radius: 5px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; font-weight: bold; }
+        .save-btn { background-color: #1e40af; color: white; }
+        .cancel-btn { background-color: #9ca3af; color: white; margin-top: 10px; }
+    </style>
+    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+</head>
+<body>
+    <div class="card">
+        <h2>➕ Add New Worker</h2>
+        
+        <label>Worker Name</label>
+        <input type="text" id="w-name" placeholder="e.g. Rahul Kumar">
+
+        <label>Phone Number (Login ID)</label>
+        <input type="number" id="w-phone" placeholder="e.g. 9876543210">
+
+        <label>Password (For Worker)</label>
+        <input type="text" id="w-pass" placeholder="e.g. 1234">
+
+        <label>Current Work</label>
+        <input type="text" id="w-work" placeholder="e.g. Cutting">
+
+        <label>Debt Amount (₹)</label>
+        <input type="number" id="w-debt" placeholder="0">
+
+        <button class="save-btn" onclick="saveWorker()">Save Worker</button>
+        <button class="cancel-btn" onclick="window.location.href='index.html'">Cancel</button>
+    </div>
+
+    <script type="module">
+        import { db, collection, addDoc } from './db.js';
+
+        window.saveWorker = async function() {
+            const name = document.getElementById('w-name').value;
+            const phone = document.getElementById('w-phone').value;
+            const pass = document.getElementById('w-pass').value; // New Field
+            const work = document.getElementById('w-work').value;
+            const debt = document.getElementById('w-debt').value;
+
+            if(!name || !phone || !pass) { alert("Name, Phone, and Password are required!"); return; }
+
+            const btn = document.querySelector('.save-btn');
+            btn.innerText = "Saving...";
+            
+            try {
+                await addDoc(collection(db, "workers"), {
+                    name: name,
+                    phone: phone,
+                    password: pass, // Save password to cloud
+                    work: work,
+                    debt: Number(debt),
+                    earnings: 0,
+                    history: []
+                });
+                alert("Worker Added Successfully!");
+                window.location.href = 'index.html';
+            } catch (e) {
+                alert("Error saving to Cloud: " + e.message);
+                btn.innerText = "Save Worker";
+            }
+        }
+    </script>
+</body>
+</html>

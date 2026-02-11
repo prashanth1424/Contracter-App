@@ -1,0 +1,21 @@
+{
+  "name": "Worker Manager Pro",
+  "short_name": "WorkerApp",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910793.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2910/2910793.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <script>
+        // Security Check: If not logged in, kick them out to login page
+        if (!sessionStorage.getItem('isLoggedIn')) {
+            window.location.href = 'login.html';
+        }
+    </script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Owner Dashboard</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --danger-color: #dc2626;
+            --success-color: #10b981;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            padding-bottom: 80px;
+            /* Space for floating button */
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        /* Updated Header Styling */
+        header {
+            margin-bottom: 20px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        /* Container for the two badges */
+        .stats-row {
+            display: flex;
+            gap: 10px;
+        }
+
+        .stat-badge {
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: white;
+        }
+
+        .badge-blue {
+            background-color: var(--primary-color);
+        }
+
+        .badge-red {
+            background-color: var(--danger-color);
+        }
+
+        /* Red for Money */
+
+        .worker-card {
+            background-color: var(--card-bg);
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            margin-bottom: 15px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .worker-summary {
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border-bottom: 1px solid transparent;
+        }
+
+        .worker-summary:hover {
+            background-color: #f9fafb;
+        }
+
+        .worker-info h3 {
+            margin: 0 0 5px 0;
+            font-size: 1.1rem;
+        }
+
+        .worker-phone {
+            color: #6b7280;
+            font-size: 0.9rem;
+        }
+
+        .expand-icon {
+            font-size: 1.2rem;
+            color: var(--primary-color);
+            transition: transform 0.3s ease;
+        }
+
+        .worker-details {
+            max-height: 0;
+            overflow: hidden;
+            background-color: #f8fafc;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .detail-row {
+            padding: 10px 15px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .debt-amount {
+            color: var(--danger-color);
+            font-weight: bold;
+        }
+
+        /* NEW: Action Buttons Styling */
+        .action-buttons {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+        }
+
+        .btn-edit {
+            background-color: var(--primary-color);
+        }
+
+        .btn-delete {
+            background-color: var(--danger-color);
+        }
+
+        .worker-card.active .worker-details {
+            max-height: 300px;
+        }
+
+        /* Increased height for buttons */
+        .worker-card.active .worker-summary {
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .worker-card.active .expand-icon {
+            transform: rotate(180deg);
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <h1>Worker Management</h1>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-badge badge-blue" id="total-workers">0 Workers</div>
+                <div class="stat-badge badge-red" id="total-debt">₹0 Outstanding</div>
+            </div>
+        </header>
+
+        <div id="worker-list">
+        </div>
+    </div>
+
+    <script type="module">
+        // Import tools from our connection file
+        import { db, collection, onSnapshot, deleteDoc, doc } from './db.js';
+
+        // 1. Listen for Real-Time Updates
+        // This replaces "localStorage.getItem". 
+        // "onSnapshot" runs automatically whenever data changes in the cloud!
+        onSnapshot(collection(db, "workers"), (snapshot) => {
+            const workers = [];
+            snapshot.forEach(doc => {
+                // We combine the data with the Firebase ID
+                workers.push({ id: doc.id, ...doc.data() });
+            });
+            renderWorkers(workers);
+        });
+
+        // 2. Render List (Almost same as before, but accepts data argument)
+        function renderWorkers(workers) {
+            const listContainer = document.getElementById('worker-list');
+            const countBadge = document.getElementById('total-workers');
+            const debtBadge = document.getElementById('total-debt');
+
+            // Calculate Totals
+            countBadge.textContent = `${workers.length} Workers`;
+            const totalMoney = workers.reduce((sum, worker) => sum + Number(worker.debt || 0), 0);
+            debtBadge.textContent = `₹${totalMoney.toLocaleString('en-IN')} Outstanding`;
+
+            listContainer.innerHTML = '';
+
+            if (workers.length === 0) {
+                listContainer.innerHTML = '<p style="text-align:center; color:#888;">No workers found in Cloud.</p>';
+                return;
+            }
+
+            workers.forEach(worker => {
+                const card = document.createElement('div');
+                card.className = 'worker-card';
+
+                // Click logic needs to be attached to window because of module scope
+                card.onclick = () => toggleDetails(card);
+
+                const totalEarned = worker.earnings || 0;
+
+                card.innerHTML = `
+                    <div class="worker-summary">
+                        <div class="worker-info">
+                            <h3>${worker.name}</h3>
+                            <div class="worker-phone">📞 ${worker.phone}</div>
+                        </div>
+                        <div class="expand-icon">▼</div>
+                    </div>
+                    <div class="worker-details">
+                        <div class="detail-row">
+                            <span class="label">Current Work:</span>
+                            <span>${worker.work}</span>
+                        </div>
+                        <div class="detail-row" style="background-color: #ecfdf5;">
+                            <span class="label">Total Earned:</span>
+                            <span style="color: #059669; font-weight: bold;">+ ₹${Number(totalEarned).toLocaleString('en-IN')}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="label">Remaining Debt:</span>
+                            <span class="debt-amount">₹${Number(worker.debt).toLocaleString('en-IN')}</span>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="btn" style="background-color: #8b5cf6;" onclick="window.viewHistory('${worker.id}')">📜 History</button>
+                            <button class="btn btn-edit" onclick="window.editWorker('${worker.id}')">Edit</button>
+                            <button class="btn btn-delete" onclick="window.deleteWorker('${worker.id}')">Delete</button>
+                        </div>
+                    </div>
+                `;
+                listContainer.appendChild(card);
+            });
+        }
+
+        // --- Global Functions (Attached to window so HTML can see them) ---
+
+        window.toggleDetails = function (cardElement) {
+            document.querySelectorAll('.worker-card').forEach(c => {
+                if (c !== cardElement) c.classList.remove('active');
+            });
+            cardElement.classList.toggle('active');
+        }
+
+        window.deleteWorker = async function (id) {
+            // Note: We passed 'event' in HTML, but in this version we handle stopPropagation differently if needed
+            // For simplicity, just confirm and delete
+            if (confirm("Delete this worker permanently from Cloud?")) {
+                try {
+                    await deleteDoc(doc(db, "workers", id));
+                    // No need to call render(), onSnapshot handles it!
+                } catch (e) {
+                    alert("Error deleting: " + e.message);
+                }
+            }
+        }
+
+        window.editWorker = function (id) {
+            window.location.href = `add_worker.html?id=${id}`;
+        }
+
+        window.viewHistory = function (id) {
+            window.location.href = `history.html?id=${id}`;
+        }
+
+        // --- Floating Buttons Logic (Same as before) ---
+        const btnContainer = document.createElement('div');
+        Object.assign(btnContainer.style, {
+            position: 'fixed', bottom: '20px', right: '20px',
+            display: 'flex', flexDirection: 'column', gap: '10px', zIndex: '100'
+        });
+
+        // Helper to create buttons
+        function createFab(text, color, link) {
+            const btn = document.createElement('button');
+            btn.innerHTML = text;
+            btn.onclick = () => window.location.href = link;
+            Object.assign(btn.style, {
+                width: '50px', height: '50px', borderRadius: '50%',
+                backgroundColor: color, color: 'white', fontSize: '24px',
+                border: 'none', boxShadow: '0 4px 10px rgba(0,0,0,0.3)', cursor: 'pointer'
+            });
+            return btn;
+        }
+
+        btnContainer.appendChild(createFab("📷", "#374151", "worker_app.html"));
+        btnContainer.appendChild(createFab("📬", "#f59e0b", "owner_inbox.html"));
+        btnContainer.appendChild(createFab("🔨", "#10b981", "daily_work.html"));
+        btnContainer.appendChild(createFab("⚙️", "#4b5563", "settings.html"));
+        btnContainer.appendChild(createFab("+", "#2563eb", "add_worker.html"));
+        btnContainer.appendChild(createFab("📊", "#0284c7", "reports.html"));
+
+        document.body.appendChild(btnContainer);
+    </script>
+</body>
+
+</html>

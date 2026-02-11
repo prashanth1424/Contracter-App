@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company Invoice Report</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
+        
+        .filter-box { 
+            background: #e0f2fe; border: 1px solid #bae6fd; padding: 20px; border-radius: 10px; margin-bottom: 20px; 
+            display: flex; flex-direction: column; gap: 15px; 
+        }
+        
+        label { font-weight: bold; color: #0369a1; display: block; margin-bottom: 5px; }
+        select, input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        
+        .btn-group { display: flex; gap: 10px; }
+        .btn-gen { background: #0284c7; color: white; flex: 1; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        .btn-pdf { background: #dc2626; color: white; flex: 1; padding: 12px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; display: none; }
+        
+        .report-result { display: none; margin-top: 20px; }
+
+        /* Screen Table */
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { background: #f3f4f6; padding: 10px; text-align: left; border-bottom: 2px solid #ddd; font-size: 0.9rem; }
+        td { padding: 10px; border-bottom: 1px solid #eee; font-size: 0.9rem; }
+        
+        .back-btn { display: block; text-align: center; margin-top: 20px; color: #666; text-decoration: none; }
+
+        /* --- 📄 FIXED PDF LAYOUT --- */
+        #invoice-box {
+            display: none; 
+            /* FIXED WIDTH: 700px fits perfectly on A4 PDF with margins */
+            width: 700px !important; 
+            padding: 30px; 
+            background: white; 
+            box-sizing: border-box;
+        }
+        .inv-header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+        .inv-title { font-size: 2rem; font-weight: bold; color: #333; }
+        .inv-details { text-align: right; font-size: 0.9rem; }
+        .inv-total { margin-top: 20px; text-align: right; font-size: 1.4rem; font-weight: bold; color: #333; }
+    </style>
+    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📊 Company Invoice Report</h2>
+
+        <div class="filter-box">
+            <div>
+                <label>1. Select Company</label>
+                <select id="company-select">
+                    <option value="">-- Choose Company --</option>
+                </select>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <div style="flex:1">
+                    <label>2. Start Date</label>
+                    <input type="date" id="start-date">
+                </div>
+                <div style="flex:1">
+                    <label>3. End Date</label>
+                    <input type="date" id="end-date">
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn-gen" onclick="generateReport()">Generate View</button>
+                <button id="pdf-btn" class="btn-pdf" onclick="downloadPDF()">📄 Download PDF</button>
+            </div>
+        </div>
+
+        <div id="result-area" class="report-result">
+            <div style="background:#10b981; color:white; padding:15px; text-align:center; font-weight:bold; border-radius:5px;">
+                Total: ₹<span id="screen-total">0</span>
+            </div>
+            <table id="screen-table">
+                <thead><tr><th>Worker</th><th>Date</th><th>Codes</th><th>Amount</th></tr></thead>
+                <tbody id="screen-list"></tbody>
+            </table>
+        </div>
+
+        <a href="index.html" class="back-btn">🔙 Back to Dashboard</a>
+    </div>
+
+    <div id="invoice-box">
+        <div class="inv-header">
+            <div>
+                <div class="inv-title">INVOICE</div>
+                <div style="margin-top:5px;"><b>From:</b> Your Contractor Agency</div>
+            </div>
+            <div class="inv-details">
+                <div><b>To:</b> <span id="inv-company">Company Name</span></div>
+                <div><b>Date:</b> <span id="inv-date">...</span></div>
+            </div>
+        </div>
+        
+        <table style="width:100%; border:1px solid #ddd; border-collapse: collapse; font-size: 0.9rem;">
+            <thead style="background:#eee;">
+                <tr>
+                    <th style="padding:8px; border:1px solid #ccc;">Worker</th>
+                    <th style="padding:8px; border:1px solid #ccc;">Date</th>
+                    <th style="padding:8px; border:1px solid #ccc;">Work Description</th>
+                    <th style="padding:8px; border:1px solid #ccc; text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody id="invoice-list">
+                </tbody>
+        </table>
+
+        <div class="inv-total">
+            Total Due: ₹<span id="inv-total-amt">0</span>
+        </div>
+        <div style="margin-top:30px; font-size:0.8rem; color:#666; text-align:center;">
+            Thank you for your business!
+        </div>
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs } from './db.js';
+
+        window.onload = async function() {
+            const select = document.getElementById('company-select');
+            const snapshot = await getDocs(collection(db, "companies"));
+            snapshot.forEach(doc => {
+                const opt = document.createElement('option');
+                opt.value = doc.data().name;
+                opt.text = doc.data().name;
+                select.appendChild(opt);
+            });
+        };
+
+        window.generateReport = async function() {
+            const company = document.getElementById('company-select').value;
+            const startVal = document.getElementById('start-date').value;
+            const endVal = document.getElementById('end-date').value;
+
+            if(!company || !startVal || !endVal) { alert("Select all fields!"); return; }
+
+            const btn = document.querySelector('.btn-gen');
+            btn.innerText = "⏳ ...";
+
+            const startDate = new Date(startVal); startDate.setHours(0,0,0,0);
+            const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
+
+            let grandTotal = 0;
+            const screenList = document.getElementById('screen-list');
+            const invList = document.getElementById('invoice-list');
+            
+            screenList.innerHTML = ''; 
+            invList.innerHTML = '';
+
+            try {
+                const workersSnap = await getDocs(collection(db, "workers"));
+                
+                workersSnap.forEach(doc => {
+                    const worker = doc.data();
+                    (worker.history || []).forEach(log => {
+                        if (log.company === company) {
+                            const logDate = new Date(log.date);
+                            if (logDate >= startDate && logDate <= endDate) {
+                                grandTotal += Number(log.amount);
+                                
+                                const rowHTML = `
+                                    <td>${worker.name}</td>
+                                    <td>${log.date.split(',')[0]}</td>
+                                    <td>${log.codes}</td>
+                                    <td style="text-align:right;">₹${log.amount}</td>
+                                `;
+                                screenList.innerHTML += `<tr>${rowHTML}</tr>`;
+                                
+                                invList.innerHTML += `
+                                    <tr>
+                                        <td style="padding:8px; border:1px solid #ccc;">${worker.name}</td>
+                                        <td style="padding:8px; border:1px solid #ccc;">${log.date.split(',')[0]}</td>
+                                        <td style="padding:8px; border:1px solid #ccc;">${log.codes}</td>
+                                        <td style="padding:8px; border:1px solid #ccc; text-align:right;">₹${log.amount}</td>
+                                    </tr>
+                                `;
+                            }
+                        }
+                    });
+                });
+
+                document.getElementById('screen-total').innerText = grandTotal;
+                document.getElementById('inv-total-amt').innerText = grandTotal;
+                document.getElementById('inv-company').innerText = company;
+                document.getElementById('inv-date').innerText = new Date().toLocaleDateString();
+
+                document.getElementById('result-area').style.display = 'block';
+                document.getElementById('pdf-btn').style.display = 'block';
+
+            } catch(e) { console.error(e); alert("Error generating report."); }
+
+            btn.innerText = "Generate View";
+        }
+
+        window.downloadPDF = function() {
+            const element = document.getElementById('invoice-box');
+            element.style.display = 'block'; 
+            
+            const opt = {
+                margin:       0.5,
+                filename:     `Invoice_${document.getElementById('inv-company').innerText}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2 },
+                jsPDF:        { unit: 'in', format: 'letter', orientation: 'portrait' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.style.display = 'none';
+            });
+        }
+    </script>
+</body>
+</html>
