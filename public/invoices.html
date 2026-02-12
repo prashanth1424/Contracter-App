@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Track Invoices</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        
+        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
+        
+        /* CARD STYLES */
+        .inv-card { 
+            background: white; padding: 15px; border-radius: 10px; margin-bottom: 15px; 
+            display: flex; justify-content: space-between; align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); cursor: pointer; transition: 0.2s;
+        }
+        .inv-card:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+
+        .inv-info { flex: 1; }
+        .client-name { font-weight: bold; font-size: 1.1rem; color: #1f2937; }
+        .inv-date { font-size: 0.85rem; color: #6b7280; }
+        
+        .inv-right { text-align: right; }
+        .inv-amount { font-weight: bold; font-size: 1.1rem; color: #1f2937; margin-bottom: 5px; }
+        
+        /* STATUS BADGES */
+        .badge { padding: 4px 10px; border-radius: 15px; font-size: 0.75rem; font-weight: bold; text-transform: uppercase; }
+        .pending { background: #fef3c7; color: #d97706; }
+        .paid { background: #dcfce7; color: #166534; }
+
+        .back-btn { display: block; width: 100%; padding: 12px; background: #4b5563; color: white; text-align: center; border: none; border-radius: 5px; margin-top: 20px; cursor: pointer; text-decoration: none; box-sizing: border-box; }
+    </style>
+    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>🧾 Sent Invoices</h2>
+        
+        <div id="loading" style="text-align:center; color:#666;">Loading payments...</div>
+        <div id="invoice-list"></div>
+
+        <a href="index.html" class="back-btn">🔙 Back to Dashboard</a>
+    </div>
+
+    <script type="module">
+        import { db, collection, getDocs, orderBy, query } from './db.js';
+
+        async function loadInvoices() {
+            const list = document.getElementById('invoice-list');
+            const loading = document.getElementById('loading');
+            
+            try {
+                // Get invoices, sort by Newest First
+                // Note: If this fails, you might need to create an index in Firebase Console. 
+                // For now, we will just fetch all.
+                const q = query(collection(db, "invoices")); 
+                const snap = await getDocs(q);
+                
+                loading.style.display = 'none';
+
+                if(snap.empty) {
+                    list.innerHTML = '<div style="text-align:center; padding:20px;">No invoices generated yet.</div>';
+                    return;
+                }
+
+                // Convert to array and sort manually (safer without index)
+                let invoices = [];
+                snap.forEach(doc => invoices.push({ id: doc.id, ...doc.data() }));
+                invoices.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                invoices.forEach(inv => {
+                    // Determine Status Style
+                    const isPaid = inv.status === 'paid';
+                    const badgeClass = isPaid ? 'paid' : 'pending';
+                    const badgeText = isPaid ? '✅ PAID' : '⏳ PENDING';
+                    
+                    // Create Link to view it again
+                    const link = `bill.html?id=${inv.id}`;
+
+                    const div = document.createElement('div');
+                    div.className = 'inv-card';
+                    div.onclick = () => window.location.href = link; // Click to open the bill
+
+                    div.innerHTML = `
+                        <div class="inv-info">
+                            <div class="client-name">${inv.clientName}</div>
+                            <div class="inv-date">${inv.createdAt.split(',')[0]}</div>
+                        </div>
+                        <div class="inv-right">
+                            <div class="inv-amount">₹${inv.total}</div>
+                            <span class="badge ${badgeClass}">${badgeText}</span>
+                        </div>
+                    `;
+                    list.appendChild(div);
+                });
+
+            } catch(e) {
+                console.error(e);
+                loading.innerText = "Error loading list.";
+            }
+        }
+
+        loadInvoices();
+    </script>
+</body>
+</html>

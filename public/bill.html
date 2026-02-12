@@ -30,8 +30,11 @@
 
         /* PAY BUTTON */
         .pay-btn { display: block; width: 100%; background: #2563eb; color: white; padding: 15px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 20px; text-decoration: none; text-align: center; }
-        .pay-btn:hover { background: #1d4ed8; }
+        .pay-btn:hover { background: #1d4ed8; transform: scale(1.02); transition: 0.2s; }
         
+        /* SUCCESS MESSAGE (Hidden initially) */
+        #success-msg { display: none; text-align: center; margin-top: 20px; color: #166534; font-weight: bold; padding: 20px; background: #dcfce7; border-radius: 10px; }
+
         .footer { text-align: center; margin-top: 30px; font-size: 0.8rem; color: #94a3b8; }
     </style>
 </head>
@@ -51,7 +54,12 @@
         <div class="item-list" id="work-list">
             </div>
 
-        <a id="pay-link" href="#" class="pay-btn">✅ Verify & Approve Payment</a>
+        <button id="pay-btn" class="pay-btn" onclick="window.approvePayment()">✅ Verify & Approve Payment</button>
+        
+        <div id="success-msg">
+            🎉 Payment Approved!<br>
+            <span style="font-size:0.8rem; font-weight:normal;">The contractor has been notified.</span>
+        </div>
         
         <div class="footer">
             Powered by <b>TrustGig</b> Secure Escrow
@@ -59,16 +67,16 @@
     </div>
 
     <script type="module">
-        import { db, doc, getDoc } from './db.js';
+        import { db, doc, getDoc, updateDoc } from './db.js';
 
         const urlParams = new URLSearchParams(window.location.search);
         const invoiceId = urlParams.get('id');
 
+        // 1. Load the Bill
         async function loadBill() {
             if (!invoiceId) { document.body.innerHTML = "No Invoice ID found."; return; }
 
             try {
-                // Fetch from the 'invoices' collection (We will create this next)
                 const docRef = doc(db, "invoices", invoiceId);
                 const snap = await getDoc(docRef);
 
@@ -80,6 +88,7 @@
                     document.getElementById('total-amt').innerText = data.total;
                     
                     const list = document.getElementById('work-list');
+                    list.innerHTML = ''; // clear loading text
                     data.items.forEach(item => {
                         list.innerHTML += `
                             <div class="item-row">
@@ -92,17 +101,48 @@
                         `;
                     });
 
-                    // Logic for Paid Status
+                    // Check if ALREADY paid
                     if(data.status === 'paid') {
-                        document.getElementById('status-area').className = 'status-badge status-paid';
-                        document.getElementById('status-area').innerText = '✅ Paid';
-                        document.getElementById('pay-link').style.display = 'none'; // Hide button if paid
+                        showPaidState();
                     }
 
                 } else {
                     document.body.innerHTML = "<h2>Invoice not found or expired.</h2>";
                 }
             } catch (e) { console.error(e); }
+        }
+
+        // 2. The Approval Function (Updates Database)
+        window.approvePayment = async function() {
+            if(!confirm("Are you sure you want to approve this payment?")) return;
+
+            const btn = document.getElementById('pay-btn');
+            btn.innerText = "Processing...";
+            
+            try {
+                const docRef = doc(db, "invoices", invoiceId);
+                
+                // UPDATE THE CLOUD
+                await updateDoc(docRef, {
+                    status: 'paid',
+                    paidAt: new Date().toLocaleString()
+                });
+
+                showPaidState();
+
+            } catch(e) {
+                alert("Error: " + e.message);
+                btn.innerText = "✅ Verify & Approve Payment";
+            }
+        }
+
+        // 3. Update UI to show "Success"
+        function showPaidState() {
+            document.getElementById('status-area').className = 'status-badge status-paid';
+            document.getElementById('status-area').innerText = '✅ Paid';
+            
+            document.getElementById('pay-btn').style.display = 'none'; // Hide button
+            document.getElementById('success-msg').style.display = 'block'; // Show success box
         }
 
         loadBill();
