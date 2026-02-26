@@ -19,12 +19,12 @@
         
         .btn-gen { background: #0284c7; color: white; }
         .btn-pdf { background: #dc2626; color: white; display: none; }
-        .btn-link { background: #16a34a; color: white; display: none; } /* Green Link Button */
+        .btn-link { background: #16a34a; color: white; display: none; }
 
         #share-area { display: none; margin-top: 15px; background: #f0fdf4; padding: 15px; border: 1px dashed #16a34a; border-radius: 5px; text-align: center; }
         .link-text { word-break: break-all; color: #166534; font-size: 0.9rem; margin-bottom: 10px; display: block; }
 
-        /* Hidden PDF Invoice Box (Keep exactly as before) */
+        /* Hidden PDF Box */
         #invoice-box { display: none; width: 700px !important; padding: 40px; background: white; box-sizing: border-box; }
         .inv-header { display: flex; justify-content: space-between; border-bottom: 2px solid #1f2937; padding-bottom: 20px; margin-bottom: 20px; }
         .inv-title { font-size: 2.2rem; font-weight: bold; color: #1f2937; }
@@ -94,7 +94,7 @@
     <script type="module">
         import { db, collection, getDocs, addDoc } from './db.js';
 
-        let currentInvoiceData = null; // Store data to save later
+        let currentInvoiceData = null;
 
         window.onload = async function() {
             const select = document.getElementById('client-select');
@@ -117,7 +117,7 @@
             const endDate = new Date(endVal); endDate.setHours(23,59,59,999);
 
             let grandTotal = 0;
-            let items = []; // We will save this array to DB
+            let items = []; 
             const screenList = document.getElementById('screen-list');
             const invList = document.getElementById('invoice-list');
             
@@ -132,15 +132,17 @@
                         if (logDate >= startDate && logDate <= endDate) {
                             grandTotal += Number(log.amount);
                             
-                            // Add to our data list
+                            // 📸 NEW: WE ARE GRABBING THE PHOTO IF IT EXISTS!
                             items.push({
                                 worker: worker.name,
                                 date: log.date.split(',')[0],
                                 desc: log.codes,
-                                amount: log.amount
+                                amount: log.amount,
+                                photo: log.imageUrl || log.photoUrl || log.photo || null // Tries to find the photo
                             });
 
-                            const row = `<td>${worker.name}</td><td>${log.date.split(',')[0]}</td><td>${log.codes}</td><td>₹${log.amount}</td>`;
+                            const photoIcon = (log.imageUrl || log.photoUrl || log.photo) ? "📸 " : "";
+                            const row = `<td>${worker.name}</td><td>${log.date.split(',')[0]}</td><td>${photoIcon}${log.codes}</td><td>₹${log.amount}</td>`;
                             screenList.innerHTML += `<tr>${row}</tr>`;
                             invList.innerHTML += `<tr><td style="padding:10px;">${log.codes} <br><small style="color:#666">${worker.name}</small></td><td style="padding:10px; text-align:right;">₹${log.amount}</td></tr>`;
                         }
@@ -152,7 +154,6 @@
             document.getElementById('inv-total-amt').innerText = grandTotal;
             document.getElementById('inv-client-name').innerText = clientName;
             
-            // Store data for the "Create Link" button
             currentInvoiceData = {
                 clientName: clientName,
                 total: grandTotal,
@@ -163,26 +164,19 @@
 
             document.getElementById('result-area').style.display = 'block';
             document.getElementById('pdf-btn').style.display = 'block';
-            document.getElementById('link-btn').style.display = 'block'; // Show Link Button
+            document.getElementById('link-btn').style.display = 'block'; 
         }
 
         window.createShareLink = async function() {
             if (!currentInvoiceData) return;
             const btn = document.getElementById('link-btn');
             btn.innerText = "⏳ Saving...";
-            
             try {
-                // 1. Save to Cloud
                 const docRef = await addDoc(collection(db, "invoices"), currentInvoiceData);
-                
-                // 2. Generate Link
-                // Note: window.location.origin gives "https://your-app.web.app"
                 const link = `${window.location.origin}/bill.html?id=${docRef.id}`;
-                
                 document.getElementById('final-link').innerText = link;
                 document.getElementById('share-area').style.display = 'block';
                 btn.innerText = "✅ Link Created";
-
             } catch (e) { alert("Error: " + e.message); }
         }
 

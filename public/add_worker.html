@@ -3,72 +3,119 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Add New Worker</title>
+    <title>Manage Worker</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .card { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); width: 350px; }
-        h2 { text-align: center; color: #1f2937; }
-        label { display: block; margin-top: 15px; color: #4b5563; font-weight: bold; }
-        input { width: 100%; padding: 10px; margin-top: 5px; border: 1px solid #d1d5db; border-radius: 5px; box-sizing: border-box; }
-        button { width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 16px; cursor: pointer; margin-top: 20px; font-weight: bold; }
-        .save-btn { background-color: #1e40af; color: white; }
-        .cancel-btn { background-color: #9ca3af; color: white; margin-top: 10px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        
+        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
+        
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; color: #4b5563; }
+        input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
+        
+        button { width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .save-btn { background-color: #2563eb; color: white; }
+        .save-btn.edit-mode { background-color: #eab308; color: #854d0e; } /* Yellow for edit */
+        .back-btn { background-color: #e5e7eb; color: #374151; }
     </style>
     <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
 </head>
 <body>
-    <div class="card">
-        <h2>➕ Add New Worker</h2>
-        
-        <label>Worker Name</label>
-        <input type="text" id="w-name" placeholder="e.g. Rahul Kumar">
 
-        <label>Phone Number (Login ID)</label>
-        <input type="number" id="w-phone" placeholder="e.g. 9876543210">
+    <div class="container">
+        <h2 id="page-title">➕ Add New Worker</h2>
 
-        <label>Password (For Worker)</label>
-        <input type="text" id="w-pass" placeholder="e.g. 1234">
+        <div class="form-group">
+            <label>Worker Name</label>
+            <input type="text" id="w-name" placeholder="Enter full name">
+        </div>
 
-        <label>Current Work</label>
-        <input type="text" id="w-work" placeholder="e.g. Cutting">
+        <div class="form-group">
+            <label>Phone Number (Optional)</label>
+            <input type="tel" id="w-phone" placeholder="Enter phone number">
+        </div>
 
-        <label>Debt Amount (₹)</label>
-        <input type="number" id="w-debt" placeholder="0">
+        <div class="form-group">
+            <label>Login PIN (4 Digits)</label>
+            <input type="number" id="w-pin" placeholder="e.g. 1234">
+        </div>
 
-        <button class="save-btn" onclick="saveWorker()">Save Worker</button>
-        <button class="cancel-btn" onclick="window.location.href='index.html'">Cancel</button>
+        <button id="save-btn" class="save-btn" onclick="window.saveWorker()">Save Worker</button>
+        <button class="back-btn" onclick="window.location.href='index.html'">Cancel</button>
     </div>
 
     <script type="module">
-        import { db, collection, addDoc } from './db.js';
+        import { db, collection, addDoc, doc, getDoc, updateDoc } from './db.js';
 
+        // 1. Check if we are Editing or Adding
+        const urlParams = new URLSearchParams(window.location.search);
+        const editId = urlParams.get('id');
+
+        window.onload = async function() {
+            if (editId) {
+                // --- WE ARE IN EDIT MODE ---
+                document.getElementById('page-title').innerText = "✏️ Edit Worker";
+                const btn = document.getElementById('save-btn');
+                btn.innerText = "Update Worker";
+                btn.className = "save-btn edit-mode"; // Make it yellow
+                
+                try {
+                    // Fetch existing data
+                    const docRef = doc(db, "workers", editId);
+                    const snap = await getDoc(docRef);
+                    
+                    if (snap.exists()) {
+                        const worker = snap.data();
+                        document.getElementById('w-name').value = worker.name || "";
+                        document.getElementById('w-phone').value = worker.phone || "";
+                        document.getElementById('w-pin').value = worker.pin || "";
+                    }
+                } catch(e) {
+                    console.error("Error fetching worker:", e);
+                }
+            }
+        };
+
+        // 2. Save or Update Logic
         window.saveWorker = async function() {
             const name = document.getElementById('w-name').value;
             const phone = document.getElementById('w-phone').value;
-            const pass = document.getElementById('w-pass').value; // New Field
-            const work = document.getElementById('w-work').value;
-            const debt = document.getElementById('w-debt').value;
+            const pin = document.getElementById('w-pin').value;
 
-            if(!name || !phone || !pass) { alert("Name, Phone, and Password are required!"); return; }
+            if(!name || !pin) { alert("Name and PIN are required!"); return; }
 
-            const btn = document.querySelector('.save-btn');
+            const btn = document.getElementById('save-btn');
             btn.innerText = "Saving...";
-            
+
             try {
-                await addDoc(collection(db, "workers"), {
-                    name: name,
-                    phone: phone,
-                    password: pass, // Save password to cloud
-                    work: work,
-                    debt: Number(debt),
-                    earnings: 0,
-                    history: []
-                });
-                alert("Worker Added Successfully!");
-                window.location.href = 'index.html';
-            } catch (e) {
-                alert("Error saving to Cloud: " + e.message);
-                btn.innerText = "Save Worker";
+                if (editId) {
+                    // --- UPDATE EXISTING WORKER ---
+                    const workerRef = doc(db, "workers", editId);
+                    await updateDoc(workerRef, {
+                        name: name,
+                        phone: phone,
+                        pin: pin
+                    });
+                    alert("Worker updated successfully!");
+                } else {
+                    // --- CREATE NEW WORKER ---
+                    await addDoc(collection(db, "workers"), {
+                        name: name,
+                        phone: phone,
+                        pin: pin,
+                        earnings: 0,
+                        history: []
+                    });
+                    alert("Worker added successfully!");
+                }
+                
+                // Go back to dashboard
+                window.location.href = "index.html";
+                
+            } catch(e) {
+                alert("Error: " + e.message);
+                btn.innerText = editId ? "Update Worker" : "Save Worker";
             }
         }
     </script>

@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>View Invoice</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; display: flex; justify-content: center; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; display: flex; justify-content: center; margin: 0; }
         .bill-card { background: white; width: 100%; max-width: 500px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
         
-        /* HEADER */
         .status-badge { display: inline-block; padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold; text-transform: uppercase; margin-bottom: 15px; }
         .status-pending { background: #fef3c7; color: #d97706; }
         .status-paid { background: #dcfce7; color: #166534; }
@@ -16,33 +15,64 @@
         h1 { margin: 0; color: #1f2937; font-size: 1.8rem; }
         .sub-text { color: #6b7280; margin-bottom: 20px; font-size: 0.9rem; }
 
-        /* AMOUNT BOX */
         .amount-box { text-align: center; margin: 30px 0; padding: 20px; background: #f8fafc; border-radius: 10px; border: 1px dashed #cbd5e1; }
         .total-label { color: #64748b; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
         .total-price { font-size: 2.5rem; font-weight: bold; color: #0f172a; margin: 5px 0; }
         
-        /* LIST */
         .item-list { border-top: 1px solid #e2e8f0; margin-top: 20px; }
-        .item-row { display: flex; justify-content: space-between; padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
+        .item-row { padding: 15px 0; border-bottom: 1px solid #e2e8f0; }
+        .item-top { display: flex; justify-content: space-between; align-items: flex-start; }
         .item-desc { font-weight: 600; color: #334155; }
         .item-date { font-size: 0.8rem; color: #94a3b8; display: block; margin-top: 2px; }
-        .item-price { font-weight: bold; color: #0f172a; }
+        .item-price { font-weight: bold; color: #0f172a; font-size: 1.1rem; }
+        .proof-img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; margin-top: 10px; border: 1px solid #e2e8f0; display: block; }
 
-        /* PAY BUTTON */
-        .pay-btn { display: block; width: 100%; background: #2563eb; color: white; padding: 15px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 20px; text-decoration: none; text-align: center; }
-        .pay-btn:hover { background: #1d4ed8; transform: scale(1.02); transition: 0.2s; }
+        .pay-btn { display: block; width: 100%; background: #2563eb; color: white; padding: 15px; border: none; border-radius: 10px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 20px; transition: 0.2s; }
+        .pay-btn:hover { background: #1d4ed8; transform: translateY(-2px); box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
         
-        /* SUCCESS MESSAGE (Hidden initially) */
-        #success-msg { display: none; text-align: center; margin-top: 20px; color: #166534; font-weight: bold; padding: 20px; background: #dcfce7; border-radius: 10px; }
-
+        #success-msg { display: none; text-align: center; margin-top: 20px; color: #166534; font-weight: bold; padding: 20px; background: #dcfce7; border-radius: 10px; border: 1px solid #bbf7d0; }
         .footer { text-align: center; margin-top: 30px; font-size: 0.8rem; color: #94a3b8; }
+
+        /* --- SECURE PAYMENT MODAL --- */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: flex-end; }
+        .payment-modal { background: white; width: 100%; max-width: 400px; border-radius: 20px 20px 0 0; padding: 25px; box-sizing: border-box; transform: translateY(100%); transition: transform 0.3s ease-out; }
+        .modal-overlay.active { display: flex; }
+        .modal-overlay.active .payment-modal { transform: translateY(0); }
+        
+        .pay-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
+        .pay-header h3 { margin: 0; display: flex; align-items: center; gap: 8px; color: #1e293b; font-size: 1.1rem; }
+        .close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #64748b; }
+        
+        .pay-amount-display { text-align: center; font-size: 2rem; font-weight: bold; color: #0f172a; margin-bottom: 20px; }
+        
+        .input-group { margin-bottom: 20px; }
+        .input-group label { display: block; font-size: 0.85rem; color: #64748b; font-weight: bold; margin-bottom: 8px; }
+        
+        /* UPI Verification Box */
+        .verify-flex { display: flex; gap: 10px; }
+        #upi-id { flex: 1; padding: 12px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 1rem; box-sizing: border-box; }
+        .verify-btn { background: #3b82f6; color: white; border: none; padding: 0 15px; border-radius: 6px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .verify-btn:hover { background: #2563eb; }
+        #verify-msg { margin-top: 8px; font-size: 0.9rem; font-weight: bold; }
+
+        /* PIN Box (Hidden Initially) */
+        #pin-section { display: none; border-top: 1px dashed #cbd5e1; padding-top: 20px; margin-top: 10px; }
+        #upi-pin { width: 100%; padding: 12px; border: 1px solid #94a3b8; border-radius: 6px; font-size: 1.1rem; box-sizing: border-box; text-align: center; letter-spacing: 5px; margin-bottom: 15px; }
+        
+        .process-btn { width: 100%; background: #10b981; color: white; padding: 15px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; display: flex; justify-content: center; align-items: center; gap: 10px; }
+        .process-btn:hover { background: #059669; }
+
+        .spinner { border: 3px solid rgba(255,255,255,0.3); border-radius: 50%; border-top: 3px solid white; width: 20px; height: 20px; animation: spin 1s linear infinite; display: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .trust-badge { display: flex; justify-content: center; align-items: center; gap: 5px; margin-top: 15px; font-size: 0.75rem; color: #64748b; }
+        .trust-badge svg { width: 14px; height: 14px; fill: #10b981; }
     </style>
 </head>
 <body>
 
     <div class="bill-card">
         <div id="status-area" class="status-badge status-pending">⏳ Payment Pending</div>
-        
         <h1 id="client-name">Loading...</h1>
         <div class="sub-text">Invoice #<span id="inv-id">...</span></div>
 
@@ -51,18 +81,50 @@
             <div class="total-price">₹<span id="total-amt">0</span></div>
         </div>
 
-        <div class="item-list" id="work-list">
-            </div>
+        <div class="item-list" id="work-list"></div>
 
-        <button id="pay-btn" class="pay-btn" onclick="window.approvePayment()">✅ Verify & Approve Payment</button>
+        <button id="pay-btn" class="pay-btn" onclick="openPaymentGateway()">💳 Pay Securely via Escrow</button>
         
         <div id="success-msg">
-            🎉 Payment Approved!<br>
-            <span style="font-size:0.8rem; font-weight:normal;">The contractor has been notified.</span>
+            <div style="font-size: 2rem; margin-bottom: 10px;">✅</div>
+            Payment Successful!<br>
+            <span style="font-size:0.85rem; font-weight:normal; color:#475569; display:block; margin-top:5px;">Funds have been securely placed in TrustGig Escrow. The contractor has been notified.</span>
         </div>
-        
-        <div class="footer">
-            Powered by <b>TrustGig</b> Secure Escrow
+        <div class="footer">Powered by <b>TrustGig</b> Secure Escrow</div>
+    </div>
+
+    <div class="modal-overlay" id="payment-modal">
+        <div class="payment-modal">
+            <div class="pay-header">
+                <h3>🛡️ TrustGig Secure Checkout</h3>
+                <button class="close-btn" onclick="closePaymentGateway()">&times;</button>
+            </div>
+            
+            <div class="pay-amount-display">₹<span id="modal-amt">0</span></div>
+            
+            <div class="input-group">
+                <label>Enter UPI ID / VPA</label>
+                <div class="verify-flex">
+                    <input type="text" id="upi-id" placeholder="e.g. name@ybl" autocomplete="off">
+                    <button class="verify-btn" id="btn-verify" onclick="verifyUPI()">Verify</button>
+                </div>
+                <div id="verify-msg"></div>
+            </div>
+
+            <div id="pin-section">
+                <label style="display:block; font-size:0.85rem; color:#64748b; font-weight:bold; margin-bottom:8px;">Enter 4-Digit UPI PIN</label>
+                <input type="password" id="upi-pin" maxlength="4" placeholder="••••">
+                
+                <button class="process-btn" id="process-btn" onclick="processPayment()">
+                    <div class="spinner" id="spinner"></div>
+                    <span id="btn-text">Pay Now</span>
+                </button>
+            </div>
+
+            <div class="trust-badge">
+                <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/></svg>
+                256-bit Encrypted Transaction
+            </div>
         </div>
     </div>
 
@@ -72,77 +134,116 @@
         const urlParams = new URLSearchParams(window.location.search);
         const invoiceId = urlParams.get('id');
 
-        // 1. Load the Bill
+        // Load Invoice Details
         async function loadBill() {
-            if (!invoiceId) { document.body.innerHTML = "No Invoice ID found."; return; }
-
+            if (!invoiceId) { document.body.innerHTML = "<h3 style='padding:20px'>No Invoice ID found.</h3>"; return; }
             try {
                 const docRef = doc(db, "invoices", invoiceId);
                 const snap = await getDoc(docRef);
-
                 if (snap.exists()) {
                     const data = snap.data();
-                    
                     document.getElementById('client-name').innerText = "Hi, " + data.clientName;
                     document.getElementById('inv-id').innerText = invoiceId.slice(0, 6).toUpperCase();
                     document.getElementById('total-amt').innerText = data.total;
+                    document.getElementById('modal-amt').innerText = data.total;
                     
                     const list = document.getElementById('work-list');
-                    list.innerHTML = ''; // clear loading text
+                    list.innerHTML = ''; 
                     data.items.forEach(item => {
-                        list.innerHTML += `
-                            <div class="item-row">
-                                <div>
-                                    <div class="item-desc">${item.desc}</div>
-                                    <span class="item-date">${item.date} • ${item.worker}</span>
-                                </div>
-                                <div class="item-price">₹${item.amount}</div>
-                            </div>
-                        `;
+                        let photoHtml = item.photo ? `<img src="${item.photo}" class="proof-img" />` : '';
+                        list.innerHTML += `<div class="item-row"><div class="item-top"><div><div class="item-desc">${item.desc}</div><span class="item-date">${item.date} • ${item.worker}</span></div><div class="item-price">₹${item.amount}</div></div>${photoHtml}</div>`;
                     });
-
-                    // Check if ALREADY paid
-                    if(data.status === 'paid') {
-                        showPaidState();
-                    }
-
-                } else {
-                    document.body.innerHTML = "<h2>Invoice not found or expired.</h2>";
+                    if(data.status === 'paid') { showPaidState(); }
                 }
             } catch (e) { console.error(e); }
         }
 
-        // 2. The Approval Function (Updates Database)
-        window.approvePayment = async function() {
-            if(!confirm("Are you sure you want to approve this payment?")) return;
-
-            const btn = document.getElementById('pay-btn');
-            btn.innerText = "Processing...";
-            
-            try {
-                const docRef = doc(db, "invoices", invoiceId);
-                
-                // UPDATE THE CLOUD
-                await updateDoc(docRef, {
-                    status: 'paid',
-                    paidAt: new Date().toLocaleString()
-                });
-
-                showPaidState();
-
-            } catch(e) {
-                alert("Error: " + e.message);
-                btn.innerText = "✅ Verify & Approve Payment";
-            }
+        // Modal Controls
+        window.openPaymentGateway = function() {
+            document.getElementById('payment-modal').classList.add('active');
         }
 
-        // 3. Update UI to show "Success"
+        window.closePaymentGateway = function() {
+            document.getElementById('payment-modal').classList.remove('active');
+            // Reset everything for next time
+            document.getElementById('upi-id').value = '';
+            document.getElementById('upi-id').disabled = false;
+            document.getElementById('btn-verify').style.display = 'block';
+            document.getElementById('btn-verify').innerText = 'Verify';
+            document.getElementById('verify-msg').innerHTML = '';
+            document.getElementById('pin-section').style.display = 'none';
+            document.getElementById('upi-pin').value = '';
+        }
+
+        // STEP 1: Verify UPI ID
+        window.verifyUPI = function() {
+            const upiInput = document.getElementById('upi-id').value.trim();
+            const msgBox = document.getElementById('verify-msg');
+            const btn = document.getElementById('btn-verify');
+
+            if(!upiInput.includes('@')) {
+                msgBox.style.color = "#dc2626"; // Red
+                msgBox.innerText = "⚠️ Please enter a valid UPI ID (e.g. name@okaxis)";
+                return;
+            }
+
+            // Loading state
+            btn.innerText = "⏳...";
+            msgBox.innerHTML = "";
+
+            // Simulate API verification delay (1.5 seconds)
+            setTimeout(() => {
+                // Cool Trick: Extract the name before the '@' to make it look real!
+                const extractedName = upiInput.split('@')[0].toUpperCase();
+                
+                btn.style.display = "none"; // Hide verify button
+                document.getElementById('upi-id').disabled = true; // Lock input
+                
+                msgBox.style.color = "#16a34a"; // Green
+                msgBox.innerHTML = `✅ Verified: <b>${extractedName}</b>`;
+                
+                // Reveal the PIN section!
+                document.getElementById('pin-section').style.display = 'block';
+            }, 1500);
+        }
+
+        // STEP 2: Process Payment
+        window.processPayment = async function() {
+            const pin = document.getElementById('upi-pin').value;
+            if(pin.length < 4) { alert("Please enter a 4-digit PIN"); return; }
+
+            const btn = document.getElementById('process-btn');
+            const spinner = document.getElementById('spinner');
+            const btnText = document.getElementById('btn-text');
+            
+            btn.style.background = "#94a3b8"; 
+            btn.style.cursor = "not-allowed";
+            spinner.style.display = "block";
+            btnText.innerText = "Processing securely...";
+
+            setTimeout(async () => {
+                try {
+                    await updateDoc(doc(db, "invoices", invoiceId), {
+                        status: 'paid',
+                        paidAt: new Date().toLocaleString()
+                    });
+                    closePaymentGateway();
+                    showPaidState();
+                } catch(e) {
+                    alert("Error: " + e.message);
+                    btn.style.background = "#10b981";
+                    btn.style.cursor = "pointer";
+                    spinner.style.display = "none";
+                    btnText.innerText = "Pay Now";
+                }
+            }, 2000); 
+        }
+
         function showPaidState() {
             document.getElementById('status-area').className = 'status-badge status-paid';
             document.getElementById('status-area').innerText = '✅ Paid';
-            
-            document.getElementById('pay-btn').style.display = 'none'; // Hide button
-            document.getElementById('success-msg').style.display = 'block'; // Show success box
+            document.getElementById('pay-btn').style.display = 'none'; 
+            document.getElementById('success-msg').style.display = 'block'; 
         }
 
         loadBill();

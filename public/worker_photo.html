@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Photo Proof</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f8fafc; padding: 20px; margin: 0; }
+        .container { max-width: 500px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        
+        h2 { text-align: center; color: #1e293b; margin-top: 0; }
+        
+        /* CAMERA UPLOAD AREA */
+        .upload-area { 
+            border: 2px dashed #cbd5e1; border-radius: 10px; padding: 30px; text-align: center; 
+            background: #f1f5f9; margin-bottom: 20px; cursor: pointer; position: relative;
+        }
+        .upload-area:hover { background: #e2e8f0; }
+        
+        /* Hide default file input, stretch it over the area */
+        #camera-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+        
+        .icon-camera { font-size: 3rem; margin-bottom: 10px; display: block; }
+        .upload-text { color: #64748b; font-weight: bold; }
+
+        /* PREVIEW IMAGE */
+        #preview-img { width: 100%; max-height: 300px; object-fit: cover; border-radius: 8px; display: none; margin-bottom: 20px; border: 2px solid #e2e8f0; }
+
+        /* FORM INPUTS */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; color: #4b5563; margin-bottom: 5px; font-size: 0.9rem; }
+        input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+
+        /* BUTTONS */
+        .btn { width: 100%; padding: 14px; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-send { background: #2563eb; color: white; }
+        .btn-send:active { background: #1d4ed8; }
+        .btn-back { background: #e2e8f0; color: #475569; margin-top: 15px; }
+    </style>
+    <script>
+        if (sessionStorage.getItem('role') !== 'worker') { window.location.href = 'login.html'; }
+    </script>
+</head>
+<body>
+
+    <div class="container">
+        <h2>📷 Send Photo Proof</h2>
+
+        <div class="upload-area" id="upload-box">
+            <input type="file" id="camera-input" accept="image/*" capture="environment">
+            <span class="icon-camera">📸</span>
+            <span class="upload-text">Tap to Open Camera</span>
+        </div>
+
+        <img id="preview-img" alt="Photo Preview">
+
+        <div class="input-group">
+            <label>Work Description</label>
+            <input type="text" id="p-desc" placeholder="e.g., Finished painting the wall">
+        </div>
+
+        <button id="send-btn" class="btn btn-send" onclick="sendPhoto()" style="display:none;">📤 Send to Owner</button>
+        <button class="btn btn-back" onclick="window.location.href='worker_app.html'">🔙 Cancel</button>
+    </div>
+
+    <script type="module">
+        import { db, collection, addDoc } from './db.js';
+
+        let compressedImageData = null;
+
+        const cameraInput = document.getElementById('camera-input');
+        const previewImg = document.getElementById('preview-img');
+        const uploadBox = document.getElementById('upload-box');
+        const sendBtn = document.getElementById('send-btn');
+
+        // 1. Handle Photo Selection & Compression
+        cameraInput.addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    // COMPRESS THE IMAGE (Reduces size so it fits in the database easily)
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 600; 
+                    const scaleSize = MAX_WIDTH / img.width;
+                    canvas.width = MAX_WIDTH;
+                    canvas.height = img.height * scaleSize;
+
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    
+                    // Convert to Base64 String (JPEG format, 70% quality)
+                    compressedImageData = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // Show Preview
+                    previewImg.src = compressedImageData;
+                    previewImg.style.display = 'block';
+                    uploadBox.style.display = 'none'; // Hide the upload box
+                    sendBtn.style.display = 'block';  // Show the Send button
+                }
+                img.src = e.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        // 2. Send to Firebase
+        window.sendPhoto = async function() {
+            const desc = document.getElementById('p-desc').value;
+            if (!compressedImageData) { alert("Please take a photo first!"); return; }
+            if (!desc) { alert("Please add a quick description!"); return; }
+
+            const btn = document.getElementById('send-btn');
+            btn.innerText = "⏳ Sending...";
+
+            const workerName = sessionStorage.getItem('workerName');
+            const workerId = sessionStorage.getItem('workerId');
+
+            try {
+                // Save to the 'inbox' collection
+                await addDoc(collection(db, "inbox"), {
+                    workerId: workerId,
+                    workerName: workerName,
+                    photo: compressedImageData,
+                    description: desc,
+                    date: new Date().toLocaleString(),
+                    status: 'unread' // Owner hasn't seen it yet
+                });
+
+                alert("✅ Photo sent successfully!");
+                window.location.href = 'worker_app.html';
+
+            } catch(error) {
+                alert("Error sending photo: " + error.message);
+                btn.innerText = "📤 Send to Owner";
+            }
+        }
+    </script>
+</body>
+</html>

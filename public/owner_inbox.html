@@ -1,141 +1,158 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <script>
-    // Security Check: If not logged in, kick them out to login page
-    if (!sessionStorage.getItem('isLoggedIn')) {
-        window.location.href = 'login.html';
-    }
-</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Owner Inbox</title>
-    <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f3f4f6; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
         .container { max-width: 600px; margin: 0 auto; }
         
-        h2 { text-align: center; margin-bottom: 20px; color: #1f2937; }
+        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
 
-        .inbox-card {
-            background: white; padding: 15px; border-radius: 10px; margin-bottom: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
+        .inbox-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 20px; border-left: 5px solid #3b82f6; }
         
-        .card-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; }
-        .worker-name { color: #2563eb; font-size: 1.1rem; }
-        .time-stamp { color: #888; font-size: 0.8rem; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        .worker-name { font-weight: bold; font-size: 1.2rem; color: #1e293b; }
+        .date { font-size: 0.8rem; color: #64748b; }
 
-        .machine-img { width: 100%; border-radius: 5px; border: 1px solid #eee; }
+        .proof-img { width: 100%; max-height: 250px; object-fit: cover; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 15px; }
+        .desc { background: #f8fafc; padding: 10px; border-radius: 6px; font-style: italic; color: #334155; margin-bottom: 15px; border-left: 3px solid #cbd5e1; }
 
-        .action-area { margin-top: 15px; display: flex; gap: 10px; }
+        /* APPROVAL FORM */
+        .approve-box { background: #eff6ff; padding: 15px; border-radius: 8px; border: 1px dashed #bfdbfe; }
+        .approve-box label { display: block; font-weight: bold; font-size: 0.85rem; color: #1e3a8a; margin-bottom: 5px; }
+        .approve-box select, .approve-box input { width: 100%; padding: 10px; border: 1px solid #93c5fd; border-radius: 5px; margin-bottom: 10px; box-sizing: border-box; }
         
-        .btn-log {
-            flex: 2; background: #10b981; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;
-        }
-        .btn-dismiss {
-            flex: 1; background: #ef4444; color: white; border: none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;
-        }
-        .empty-msg { text-align: center; color: #888; margin-top: 50px; }
+        .btn-approve { width: 100%; background: #10b981; color: white; border: none; padding: 12px; border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        .btn-approve:hover { background: #059669; }
+
+        .empty-state { text-align: center; color: #64748b; padding: 40px; background: white; border-radius: 12px; }
+        .back-btn { display: block; text-align: center; margin-top: 20px; color: #475569; text-decoration: none; font-weight: bold; }
     </style>
+    <script>if (sessionStorage.getItem('role') !== 'owner') { window.location.href = 'login.html'; }</script>
 </head>
 <body>
 
     <div class="container">
-        <h2>📬 Photo Inbox</h2>
+        <h2>📫 Worker Photo Inbox</h2>
         
-        <div id="inbox-list">
-            </div>
+        <div id="loading" style="text-align:center; color:#666;">Loading photos...</div>
+        <div id="inbox-list"></div>
 
-        <button onclick="window.location.href='index.html'" style="width:100%; padding:15px; margin-top:20px; background:#ccc; border:none; border-radius:5px;">Back to Dashboard</button>
+        <a href="index.html" class="back-btn">🔙 Back to Dashboard</a>
     </div>
 
-   <script type="module">
-        import { db, collection, onSnapshot, deleteDoc, updateDoc, doc } from './db.js';
+    <script type="module">
+        import { db, collection, getDocs, doc, getDoc, updateDoc, arrayUnion } from './db.js';
 
-        // Security Check
-        if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }
+        let clientsDropdownHTML = '<option value="">-- Choose Client --</option>';
 
-        // Listen for new photos in Real-Time
-        onSnapshot(collection(db, "inbox"), (snapshot) => {
-            const container = document.getElementById('inbox-list');
-            container.innerHTML = '';
+        window.onload = async function() {
+            try {
+                // 1. Pre-load Clients for the dropdowns
+                const clientSnap = await getDocs(collection(db, "clients"));
+                clientSnap.forEach(d => {
+                    clientsDropdownHTML += `<option value="${d.data().name}">${d.data().name}</option>`;
+                });
+
+                // 2. Fetch Inbox Messages
+                const inboxSnap = await getDocs(collection(db, "inbox"));
+                const list = document.getElementById('inbox-list');
+                document.getElementById('loading').style.display = 'none';
+
+                let hasMessages = false;
+
+                inboxSnap.forEach(msgDoc => {
+                    const msg = msgDoc.data();
+                    const msgId = msgDoc.id;
+
+                    // Only show unread messages
+                    if (msg.status === 'unread') {
+                        hasMessages = true;
+                        
+                        // Create a card for this photo
+                        const card = document.createElement('div');
+                        card.className = 'inbox-card';
+                        card.id = `card-${msgId}`;
+                        
+                        card.innerHTML = `
+                            <div class="header">
+                                <div class="worker-name">👷 ${msg.workerName}</div>
+                                <div class="date">${msg.date.split(',')[0]}</div>
+                            </div>
+                            
+                            <img src="${msg.photo}" class="proof-img" alt="Work Photo">
+                            <div class="desc">" ${msg.description} "</div>
+                            
+                            <div class="approve-box">
+                                <label>1. Assign to Client Invoice:</label>
+                                <select id="client-${msgId}">${clientsDropdownHTML}</select>
+                                
+                                <label>2. Bill Amount (₹):</label>
+                                <input type="number" id="amt-${msgId}" placeholder="e.g. 500">
+                                
+                                <button class="btn-approve" onclick="window.approveAndLog('${msgId}', '${msg.workerId}', '${msg.description}')">
+                                    ✅ Approve & Add to Bill
+                                </button>
+                            </div>
+                        `;
+                        
+                        // We attach the raw photo data securely to the button so we can pass it
+                        card.querySelector('.btn-approve').photoData = msg.photo;
+                        
+                        list.appendChild(card);
+                    }
+                });
+
+                if (!hasMessages) {
+                    list.innerHTML = `<div class="empty-state">🎉 All caught up! No pending photos.</div>`;
+                }
+
+            } catch(e) { console.error(e); }
+        };
+
+        // 3. Process the Photo into Billed Work
+        window.approveAndLog = async function(inboxId, workerId, descText) {
+            const clientName = document.getElementById(`client-${inboxId}`).value;
+            const amt = document.getElementById(`amt-${inboxId}`).value;
             
-            if (snapshot.empty) {
-                container.innerHTML = '<p class="empty-msg">No photos found.</p>';
-                return;
-            }
+            // Grab the photo safely from the button object
+            const btn = event.target;
+            const photoData = btn.photoData;
 
-            // 1. Collect all items into a list first
-            let items = [];
-            snapshot.forEach(docSnap => {
-                items.push({ id: docSnap.id, ...docSnap.data() });
-            });
+            if (!clientName || !amt) { alert("Please select a client and enter an amount!"); return; }
 
-            // 2. SORT the list: Newest (Big Timestamp) -> Oldest (Small Timestamp)
-            // (Old photos without timestamps will sit at the bottom)
-            items.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            btn.innerText = "⏳ Processing...";
 
-            // 3. Display them
-            items.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'inbox-card';
+            try {
+                // A. Update Worker's Log (This is what reports.html reads from)
+                const workerRef = doc(db, "workers", workerId);
+                const wSnap = await getDoc(workerRef);
                 
-                // VISUAL LOGIC: Check if work is already logged
-                const isLogged = item.status === 'logged';
+                await updateDoc(workerRef, {
+                    earnings: (wSnap.data().earnings || 0) + Number(amt),
+                    history: arrayUnion({
+                        date: new Date().toLocaleString(),
+                        company: clientName,
+                        codes: descText, // The description they typed
+                        amount: amt,
+                        photo: photoData // Attach the photo to the final log!
+                    })
+                });
 
-                if (isLogged) {
-                    card.style.border = "2px solid #10b981"; // Green Border
-                    card.style.backgroundColor = "#ecfdf5";  // Light Green bg
-                }
+                // B. Mark Inbox Message as Read so it disappears
+                await updateDoc(doc(db, "inbox", inboxId), {
+                    status: 'read'
+                });
 
-                let actionButtons = '';
-                if (isLogged) {
-                    actionButtons = `
-                        <div style="flex:1; text-align:center; font-weight:bold; color:#059669; padding:10px;">
-                            ✅ Work Logged
-                        </div>
-                        <button class="btn-dismiss" onclick="window.dismissItem('${item.id}')">Delete</button>
-                    `;
-                } else {
-                    actionButtons = `
-                        <button class="btn-log" onclick="window.markAsLogged('${item.id}')">Log Work</button>
-                        <button class="btn-dismiss" onclick="window.dismissItem('${item.id}')">Dismiss</button>
-                    `;
-                }
+                // C. Remove card from screen
+                document.getElementById(`card-${inboxId}`).style.display = 'none';
+                alert("✅ Added to " + clientName + "'s Invoice successfully!");
 
-                card.innerHTML = `
-                    <div class="card-header">
-                        <span class="worker-name">👤 ${item.worker}</span>
-                        <span class="time-stamp">${item.time}</span>
-                    </div>
-                    <img src="${item.image}" class="machine-img">
-                    <div class="action-area">
-                        ${actionButtons}
-                    </div>
-                `;
-                
-                // Use appendChild because the list is ALREADY sorted
-                container.appendChild(card);
-            });
-        });
-
-        // --- Same Functions as Before ---
-
-        window.markAsLogged = async function(id) {
-            if(confirm("Open Work Page to log this?")) {
-                try {
-                    await updateDoc(doc(db, "inbox", id), { status: "logged" });
-                    window.location.href = 'daily_work.html';
-                } catch(e) { alert("Error: " + e.message); }
-            }
-        }
-
-        window.dismissItem = async function(id) {
-            if(confirm("Delete this photo permanently?")) {
-                try {
-                    await deleteDoc(doc(db, "inbox", id));
-                } catch(e) { alert("Error deleting: " + e.message); }
+            } catch(e) {
+                alert("Error saving: " + e.message);
+                btn.innerText = "✅ Approve & Add to Bill";
             }
         }
     </script>
