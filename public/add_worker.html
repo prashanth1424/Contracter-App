@@ -3,81 +3,105 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Worker</title>
+    <title>Manage Worker | TrustGig</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
-        .container { max-width: 400px; margin: 0 auto; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        :root { --primary: #1e3a8a; --sidebar: #0f172a; --bg: #f8fafc; --text: #334155; --accent: #3b82f6; }
+        body { margin: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
         
-        h2 { text-align: center; color: #1f2937; margin-bottom: 20px; }
+        /* SIDEBAR (Matches Dashboard) */
+        .sidebar { width: 260px; background-color: var(--sidebar); color: white; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; font-size: 1.5rem; font-weight: bold; border-bottom: 1px solid #1e293b; }
+        .nav-links { flex: 1; padding: 20px 0; display: flex; flex-direction: column; gap: 5px; }
+        .nav-link { padding: 12px 25px; color: #cbd5e1; text-decoration: none; display: flex; align-items: center; gap: 15px; font-weight: 500; transition: 0.2s; }
+        .nav-link:hover, .nav-link.active { background-color: var(--primary); color: white; border-left: 4px solid var(--accent); }
         
-        .form-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; color: #4b5563; }
-        input { width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 5px; box-sizing: border-box; font-size: 1rem; }
+        /* MAIN CONTENT */
+        .main-content { flex: 1; overflow-y: auto; padding: 40px; }
+        .header h1 { margin: 0 0 5px 0; color: #0f172a; font-size: 2rem; }
+        .header p { margin: 0 0 30px 0; color: #64748b; }
+
+        /* FORM CARD */
+        .form-card { background: white; max-width: 500px; padding: 30px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; color: #4b5563; font-size: 0.9rem; }
+        input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 1rem; transition: 0.2s; background: #f8fafc; }
+        input:focus { border-color: var(--accent); outline: none; background: white; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
         
-        button { width: 100%; padding: 12px; border: none; border-radius: 5px; font-size: 1rem; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .save-btn { background-color: #2563eb; color: white; }
-        .save-btn.edit-mode { background-color: #eab308; color: #854d0e; } /* Yellow for edit */
-        .back-btn { background-color: #e5e7eb; color: #374151; }
+        .btn-group { display: flex; gap: 10px; margin-top: 30px; }
+        button { flex: 1; padding: 14px; border: none; border-radius: 8px; font-size: 1rem; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .save-btn { background-color: var(--accent); color: white; }
+        .save-btn:hover { background-color: #2563eb; }
+        .save-btn.edit-mode { background-color: #f59e0b; color: white; }
+        .cancel-btn { background-color: #e2e8f0; color: #475569; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center; }
+        .cancel-btn:hover { background-color: #cbd5e1; }
     </style>
-    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+    <script>if (sessionStorage.getItem('role') !== 'owner') window.location.href = 'login.html';</script>
 </head>
 <body>
 
-    <div class="container">
-        <h2 id="page-title">➕ Add New Worker</h2>
+    <aside class="sidebar">
+        <div class="sidebar-header">🛡️ TrustGig</div>
+        <nav class="nav-links">
+            <a href="index.html" class="nav-link">📊 Dashboard</a>
+            <a href="owner_inbox.html" class="nav-link">📫 Photo Inbox</a>
+            <a href="reports.html" class="nav-link">🧾 Invoices & Links</a>
+            <a href="clients.html" class="nav-link">🏢 Manage Clients</a>
+            <a href="add_worker.html" class="nav-link active">👷 Add Worker</a>
+        </nav>
+    </aside>
 
-        <div class="form-group">
-            <label>Worker Name</label>
-            <input type="text" id="w-name" placeholder="Enter full name">
+    <main class="main-content">
+        <div class="header">
+            <h1 id="page-title">Onboard New Worker</h1>
+            <p>Create a secure profile and access PIN for your contractor.</p>
         </div>
 
-        <div class="form-group">
-            <label>Phone Number (Optional)</label>
-            <input type="tel" id="w-phone" placeholder="Enter phone number">
-        </div>
+        <div class="form-card">
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="w-name" placeholder="e.g. Raju Painter">
+            </div>
+            <div class="form-group">
+                <label>Phone Number (Optional)</label>
+                <input type="tel" id="w-phone" placeholder="+91 ">
+            </div>
+            <div class="form-group">
+                <label>Secure Login PIN (4 Digits)</label>
+                <input type="number" id="w-pin" placeholder="••••" style="letter-spacing: 2px;">
+            </div>
 
-        <div class="form-group">
-            <label>Login PIN (4 Digits)</label>
-            <input type="number" id="w-pin" placeholder="e.g. 1234">
+            <div class="btn-group">
+                <a href="index.html" class="cancel-btn">Cancel</a>
+                <button id="save-btn" class="save-btn" onclick="window.saveWorker()">Create Profile</button>
+            </div>
         </div>
-
-        <button id="save-btn" class="save-btn" onclick="window.saveWorker()">Save Worker</button>
-        <button class="back-btn" onclick="window.location.href='index.html'">Cancel</button>
-    </div>
+    </main>
 
     <script type="module">
         import { db, collection, addDoc, doc, getDoc, updateDoc } from './db.js';
 
-        // 1. Check if we are Editing or Adding
         const urlParams = new URLSearchParams(window.location.search);
         const editId = urlParams.get('id');
 
         window.onload = async function() {
             if (editId) {
-                // --- WE ARE IN EDIT MODE ---
-                document.getElementById('page-title').innerText = "✏️ Edit Worker";
+                document.getElementById('page-title').innerText = "Edit Worker Profile";
                 const btn = document.getElementById('save-btn');
-                btn.innerText = "Update Worker";
-                btn.className = "save-btn edit-mode"; // Make it yellow
+                btn.innerText = "Update Profile";
+                btn.className = "save-btn edit-mode"; 
                 
                 try {
-                    // Fetch existing data
-                    const docRef = doc(db, "workers", editId);
-                    const snap = await getDoc(docRef);
-                    
+                    const snap = await getDoc(doc(db, "workers", editId));
                     if (snap.exists()) {
                         const worker = snap.data();
                         document.getElementById('w-name').value = worker.name || "";
                         document.getElementById('w-phone').value = worker.phone || "";
                         document.getElementById('w-pin').value = worker.pin || "";
                     }
-                } catch(e) {
-                    console.error("Error fetching worker:", e);
-                }
+                } catch(e) { console.error(e); }
             }
         };
 
-        // 2. Save or Update Logic
         window.saveWorker = async function() {
             const name = document.getElementById('w-name').value;
             const phone = document.getElementById('w-phone').value;
@@ -86,36 +110,18 @@
             if(!name || !pin) { alert("Name and PIN are required!"); return; }
 
             const btn = document.getElementById('save-btn');
-            btn.innerText = "Saving...";
+            btn.innerText = "Processing...";
 
             try {
                 if (editId) {
-                    // --- UPDATE EXISTING WORKER ---
-                    const workerRef = doc(db, "workers", editId);
-                    await updateDoc(workerRef, {
-                        name: name,
-                        phone: phone,
-                        pin: pin
-                    });
-                    alert("Worker updated successfully!");
+                    await updateDoc(doc(db, "workers", editId), { name, phone, pin });
                 } else {
-                    // --- CREATE NEW WORKER ---
-                    await addDoc(collection(db, "workers"), {
-                        name: name,
-                        phone: phone,
-                        pin: pin,
-                        earnings: 0,
-                        history: []
-                    });
-                    alert("Worker added successfully!");
+                    await addDoc(collection(db, "workers"), { name, phone, pin, earnings: 0, history: [] });
                 }
-                
-                // Go back to dashboard
                 window.location.href = "index.html";
-                
             } catch(e) {
                 alert("Error: " + e.message);
-                btn.innerText = editId ? "Update Worker" : "Save Worker";
+                btn.innerText = editId ? "Update Profile" : "Create Profile";
             }
         }
     </script>

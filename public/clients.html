@@ -3,201 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Manage Clients</title>
+    <title>Manage Clients | TrustGig</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
+        :root { --primary: #1e3a8a; --sidebar: #0f172a; --bg: #f8fafc; --text: #334155; --accent: #3b82f6; }
+        body { margin: 0; font-family: 'Segoe UI', sans-serif; background-color: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
         
-        /* CARD STYLE */
-        .card { background: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        h2 { margin-top: 0; color: #1f2937; display: flex; align-items: center; gap: 10px; }
+        /* SIDEBAR */
+        .sidebar { width: 260px; background-color: var(--sidebar); color: white; display: flex; flex-direction: column; }
+        .sidebar-header { padding: 20px; font-size: 1.5rem; font-weight: bold; border-bottom: 1px solid #1e293b; }
+        .nav-links { flex: 1; padding: 20px 0; display: flex; flex-direction: column; gap: 5px; }
+        .nav-link { padding: 12px 25px; color: #cbd5e1; text-decoration: none; display: flex; align-items: center; gap: 15px; font-weight: 500; transition: 0.2s; }
+        .nav-link:hover, .nav-link.active { background-color: var(--primary); color: white; border-left: 4px solid var(--accent); }
         
-        /* FORM INPUTS */
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-weight: bold; color: #4b5563; margin-bottom: 5px; font-size: 0.9rem; }
-        input { width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 8px; box-sizing: border-box; font-size: 1rem; }
+        /* MAIN */
+        .main-content { flex: 1; overflow-y: auto; padding: 40px; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .header h1 { margin: 0; color: #0f172a; font-size: 2rem; }
         
-        /* BUTTONS */
-        button { cursor: pointer; border: none; font-weight: bold; border-radius: 8px; transition: transform 0.1s; }
-        button:active { transform: scale(0.98); }
+        .grid-layout { display: grid; grid-template-columns: 1fr 2fr; gap: 30px; }
         
-        .btn-add { background: #2563eb; color: white; width: 100%; padding: 12px; font-size: 1rem; }
-        .btn-cancel { background: #6b7280; color: white; width: 100%; padding: 12px; font-size: 1rem; margin-top: 10px; display: none; } /* Hidden by default */
-        .btn-back { background: #4b5563; color: white; width: 100%; padding: 12px; margin-top: 20px; }
+        /* ADD CARD */
+        .card { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; }
+        .card h3 { margin-top: 0; color: #1e293b; border-bottom: 1px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px; }
         
-        /* CLIENT LIST ITEM */
-        .client-item { 
-            display: flex; justify-content: space-between; align-items: center; 
-            padding: 15px; border-bottom: 1px solid #eee; 
-        }
-        .client-info { flex: 1; }
-        .client-name { font-weight: bold; color: #111; font-size: 1.1rem; }
-        .client-details { color: #666; font-size: 0.85rem; margin-top: 2px; }
+        input { width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 1rem; margin-bottom: 15px; background: #f8fafc; }
+        input:focus { border-color: var(--accent); outline: none; background: white; }
         
-        .action-btns { display: flex; gap: 8px; }
-        .btn-icon { padding: 8px 12px; font-size: 1.2rem; border-radius: 6px; cursor: pointer; text-decoration: none; display: inline-block; }
-        .btn-call { background: #dcfce7; color: #166534; }
-        .btn-wa { background: #dbeafe; color: #1e40af; }
-        .btn-edit { background: #fef9c3; color: #854d0e; } /* Yellow for Edit */
-        .btn-del { background: #fee2e2; color: #991b1b; }
+        .btn-add { width: 100%; padding: 12px; background: var(--accent); color: white; border: none; border-radius: 8px; font-weight: bold; font-size: 1rem; cursor: pointer; transition: 0.2s; }
+        .btn-add:hover { background: #2563eb; }
+
+        /* LIST CARD */
+        .client-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-bottom: 1px solid #f1f5f9; transition: 0.2s; }
+        .client-item:hover { background: #f8fafc; }
+        .client-item:last-child { border-bottom: none; }
+        .c-icon { background: #dbeafe; color: #1e40af; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; margin-right: 15px; }
+        .c-info { flex: 1; }
+        .c-name { font-weight: bold; color: #0f172a; font-size: 1.1rem; }
+        .c-meta { color: #64748b; font-size: 0.85rem; }
+        .btn-del { background: #fee2e2; color: #dc2626; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-del:hover { background: #fca5a5; }
 
     </style>
-    <script>if (!sessionStorage.getItem('isLoggedIn')) { window.location.href = 'login.html'; }</script>
+    <script>if (sessionStorage.getItem('role') !== 'owner') window.location.href = 'login.html';</script>
 </head>
 <body>
 
-    <div class="container">
-        
-        <div class="card" style="border-top: 5px solid #2563eb;">
-            <h2 id="form-title">🤝 Add New Client</h2>
-            
-            <input type="hidden" id="edit-id">
+    <aside class="sidebar">
+        <div class="sidebar-header">🛡️ TrustGig</div>
+        <nav class="nav-links">
+            <a href="index.html" class="nav-link">📊 Dashboard</a>
+            <a href="owner_inbox.html" class="nav-link">📫 Photo Inbox</a>
+            <a href="reports.html" class="nav-link">🧾 Invoices & Links</a>
+            <a href="clients.html" class="nav-link active">🏢 Manage Clients</a>
+            <a href="add_worker.html" class="nav-link">👷 Add Worker</a>
+        </nav>
+    </aside>
 
-            <div class="input-group">
-                <label>Client Name</label>
-                <input type="text" id="c-name" placeholder="e.g. Ravi Sharma">
-            </div>
-            
-            <div class="input-group">
-                <label>Phone Number</label>
-                <input type="tel" id="c-phone" placeholder="e.g. 9876543210">
-            </div>
-
-            <div class="input-group">
-                <label>Location / Project Name</label>
-                <input type="text" id="c-loc" placeholder="e.g. Banjara Hills, Flat 402">
-            </div>
-
-            <button id="save-btn" class="btn-add" onclick="window.saveClient()">Save Client</button>
-            <button id="cancel-btn" class="btn-cancel" onclick="window.cancelEdit()">Cancel Edit</button>
+    <main class="main-content">
+        <div class="header">
+            <h1>Client Database</h1>
         </div>
 
-        <div class="card">
-            <h2>📇 Client List</h2>
-            <div id="client-list">
-                <div style="text-align:center; color:#999; padding:20px;">Loading...</div>
+        <div class="grid-layout">
+            <div class="card" style="height: fit-content;">
+                <h3>➕ Add New Client</h3>
+                <input type="text" id="c-name" placeholder="Company / Client Name">
+                <input type="email" id="c-email" placeholder="Email Address">
+                <input type="tel" id="c-phone" placeholder="Phone Number">
+                <button class="btn-add" onclick="addClient()">Register Client</button>
+            </div>
+
+            <div class="card">
+                <h3>🏢 Active Clients</h3>
+                <div id="loading" style="color:#64748b; text-align:center;">Loading database...</div>
+                <div id="client-list"></div>
             </div>
         </div>
-
-        <button class="btn-back" onclick="window.location.href='index.html'">🔙 Back to Dashboard</button>
-    </div>
+    </main>
 
     <script type="module">
-        import { db, collection, addDoc, onSnapshot, deleteDoc, doc, updateDoc } from './db.js';
+        import { db, collection, addDoc, getDocs, deleteDoc, doc } from './db.js';
 
-        // 1. REAL-TIME LISTENER
-        onSnapshot(collection(db, "clients"), (snapshot) => {
+        async function loadClients() {
             const list = document.getElementById('client-list');
+            document.getElementById('loading').style.display = 'none';
             list.innerHTML = '';
 
-            if (snapshot.empty) {
-                list.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">No clients added yet.</div>';
-                return;
-            }
-
-            snapshot.forEach(docSnap => {
-                const client = docSnap.data();
-                const div = document.createElement('div');
-                div.className = 'client-item';
-                
-                // We pass data safely to the edit function using quotes
-                div.innerHTML = `
-                    <div class="client-info">
-                        <div class="client-name">${client.name}</div>
-                        <div class="client-details">📞 ${client.phone} • 📍 ${client.location}</div>
-                    </div>
-                    <div class="action-btns">
-                        <a href="tel:${client.phone}" class="btn-icon btn-call">📞</a>
-                        <a href="https://wa.me/91${client.phone}" target="_blank" class="btn-icon btn-wa">💬</a>
-                        
-                        <button class="btn-icon btn-edit" onclick="window.startEdit('${docSnap.id}', '${client.name}', '${client.phone}', '${client.location}')">✏️</button>
-                        
-                        <button class="btn-icon btn-del" onclick="window.deleteClient('${docSnap.id}')">🗑</button>
-                    </div>
-                `;
-                list.appendChild(div);
-            });
-        });
-
-        // 2. SAVE CLIENT (Handles Both ADD and UPDATE)
-        window.saveClient = async function() {
-            const id = document.getElementById('edit-id').value; // Check hidden ID
-            const name = document.getElementById('c-name').value;
-            const phone = document.getElementById('c-phone').value;
-            const loc = document.getElementById('c-loc').value;
-
-            if(!name || !phone) { alert("Name and Phone are required!"); return; }
-
-            const btn = document.getElementById('save-btn');
-            const originalText = btn.innerText;
-            btn.innerText = "Processing...";
-            
             try {
-                if (id) {
-                    // --- UPDATE MODE ---
-                    await updateDoc(doc(db, "clients", id), {
-                        name: name,
-                        phone: phone,
-                        location: loc || "Unknown"
-                    });
-                    alert("Client Updated!");
-                    window.cancelEdit(); // Reset form
-                } else {
-                    // --- ADD NEW MODE ---
-                    await addDoc(collection(db, "clients"), {
-                        name: name,
-                        phone: phone,
-                        location: loc || "Unknown",
-                        joinedAt: new Date().toLocaleString()
-                    });
-                    // Clear inputs manually if not editing
-                    document.getElementById('c-name').value = '';
-                    document.getElementById('c-phone').value = '';
-                    document.getElementById('c-loc').value = '';
-                }
-            } catch (e) {
-                alert("Error: " + e.message);
-            }
-            btn.innerText = originalText;
+                const snap = await getDocs(collection(db, "clients"));
+                if(snap.empty) { list.innerHTML = "<p style='color:#64748b;'>No clients found.</p>"; return; }
+
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    const initial = data.name.charAt(0).toUpperCase();
+                    list.innerHTML += `
+                        <div class="client-item">
+                            <div class="c-icon">${initial}</div>
+                            <div class="c-info">
+                                <div class="c-name">${data.name}</div>
+                                <div class="c-meta">${data.email || 'No email'} • ${data.phone || 'No phone'}</div>
+                            </div>
+                            <button class="btn-del" onclick="window.delClient('${docSnap.id}')">Delete</button>
+                        </div>
+                    `;
+                });
+            } catch(e) { console.error(e); }
         }
 
-        // 3. START EDITING (Fills the form)
-        window.startEdit = function(id, name, phone, loc) {
-            document.getElementById('edit-id').value = id;
-            document.getElementById('c-name').value = name;
-            document.getElementById('c-phone').value = phone;
-            document.getElementById('c-loc').value = loc;
+        window.addClient = async function() {
+            const name = document.getElementById('c-name').value;
+            const email = document.getElementById('c-email').value;
+            const phone = document.getElementById('c-phone').value;
+            if(!name) return alert("Client Name is required!");
 
-            // Change UI to Edit Mode
-            document.getElementById('form-title').innerText = "✏️ Edit Client";
-            document.getElementById('save-btn').innerText = "Update Client";
-            document.getElementById('save-btn').style.backgroundColor = "#eab308"; // Yellow-ish
-            document.getElementById('cancel-btn').style.display = "block";
-
-            // Scroll to top so user sees the form
-            window.scrollTo({ top: 0, behavior: 'smooth' });
+            try {
+                await addDoc(collection(db, "clients"), { name, email, phone });
+                document.getElementById('c-name').value = '';
+                document.getElementById('c-email').value = '';
+                document.getElementById('c-phone').value = '';
+                loadClients();
+            } catch(e) { alert("Error: " + e.message); }
         }
 
-        // 4. CANCEL EDIT
-        window.cancelEdit = function() {
-            document.getElementById('edit-id').value = '';
-            document.getElementById('c-name').value = '';
-            document.getElementById('c-phone').value = '';
-            document.getElementById('c-loc').value = '';
-
-            // Reset UI
-            document.getElementById('form-title').innerText = "🤝 Add New Client";
-            document.getElementById('save-btn').innerText = "Save Client";
-            document.getElementById('save-btn').style.backgroundColor = "#2563eb"; // Blue
-            document.getElementById('cancel-btn').style.display = "none";
-        }
-
-        // 5. DELETE CLIENT
-        window.deleteClient = async function(id) {
-            if(confirm("Delete this client permanently?")) {
+        window.delClient = async function(id) {
+            if(confirm("Delete this client?")) {
                 await deleteDoc(doc(db, "clients", id));
+                loadClients();
             }
         }
+
+        loadClients();
     </script>
 </body>
 </html>
